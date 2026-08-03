@@ -27,7 +27,7 @@ import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useChatStore } from '@/store/useChatStore';
-import { useAppNavigation, useBackHandler, useSpeech, useLiveLocation } from '@/hooks';
+import { useAppNavigation, useBackHandler, useSpeech, useLiveLocation, useAIChat } from '@/hooks';
 import { CameraViewModal } from '@/features/camera';
 import { toWalkingTime, translateInstruction } from '@/utils';
 
@@ -270,7 +270,8 @@ export default function CompanionScreen() {
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-  const { addUserMessage, addAIMessage } = useChatStore();
+  const { addUserMessage } = useChatStore();
+  const aiChatMutation = useAIChat();
 
   const handleTalk = () => openChat();
 
@@ -280,20 +281,24 @@ export default function CompanionScreen() {
 
   const handleConfused = () => {
     const userMsgText = profile.languagePreference === 'hi'
-      ? "मैं भ्रमित हूँ, कृपया मेरी मदद करें!"
+      ? "मैं भ्रमित हूँ! मुझे क्या करना चाहिए?"
       : profile.languagePreference === 'hinglish'
-      ? "Main confuse hoon, please help me!"
-      : "I am confused right now, can you guide me?";
+      ? "Main confuse hoon! Mujhe kya karna chahiye?"
+      : "I am confused right now! Where should I turn?";
 
-    const aiRespText = profile.languagePreference === 'hi'
-      ? "कोई बात नहीं! 😊 मैं आपके साथ हूँ। सामने सिग्नल या मुख्य रास्ता देखें।"
-      : profile.languagePreference === 'hinglish'
-      ? "Koi baat nahi! 😊 Main aapke saath hoon. Samne main road dekho."
-      : "Koi baat nahi 😊 I'm right here with you! Look straight ahead for the main road.";
+    const userMsg = addUserMessage(userMsgText);
 
-    addUserMessage(userMsgText);
-    addAIMessage(aiRespText, 'reassuring');
-    speak(aiRespText);
+    // Call dynamic AI API with exact trip & step context
+    aiChatMutation.mutate({
+      messages: [userMsg],
+      context: {
+        currentInstruction: translatedInstruction || currentStep?.humanInstruction,
+        destinationName: activeTrip?.destination.name,
+        remainingSteps,
+        isOnRoute: activeTrip?.isOnRoute ?? true,
+      },
+    });
+
     openChat();
   };
 
