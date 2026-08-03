@@ -29,7 +29,6 @@ export const safeStorage = {
       const value = await AsyncStorage.getItem(name);
       return value;
     } catch (error) {
-      console.warn('[SafeStorage] AsyncStorage.getItem fallback:', error);
       return inMemoryStorage.get(name) ?? null;
     }
   },
@@ -51,7 +50,6 @@ export const safeStorage = {
     try {
       await AsyncStorage.setItem(name, value);
     } catch (error) {
-      console.warn('[SafeStorage] AsyncStorage.setItem fallback:', error);
       inMemoryStorage.set(name, value);
     }
   },
@@ -73,7 +71,6 @@ export const safeStorage = {
     try {
       await AsyncStorage.removeItem(name);
     } catch (error) {
-      console.warn('[SafeStorage] AsyncStorage.removeItem fallback:', error);
       inMemoryStorage.delete(name);
     }
   },
