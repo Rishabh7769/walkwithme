@@ -62,7 +62,6 @@ export function PlacesAutocompleteInput({
     onQueryChange(cleanStr);
     setIsVoiceModalOpen(false);
 
-    // Auto-fetch prediction and launch direct navigation (Google Maps Voice Search behavior)
     try {
       const results = await getPlacePredictions(cleanStr);
       if (results.length > 0) {
@@ -78,7 +77,7 @@ export function PlacesAutocompleteInput({
     outputRange: ['rgba(245, 158, 11, 0.3)', '#10B981'],
   });
 
-  const showDropdown = query.trim().length >= 1 && (predictions.length > 0 || isLoading);
+  const showDropdown = query.trim().length >= 1 || predictions.length > 0 || isLoading;
 
   return (
     <View style={styles.container}>
@@ -122,7 +121,7 @@ export function PlacesAutocompleteInput({
         ) : null}
       </Animated.View>
 
-      {/* Autocomplete Dropdown List */}
+      {/* Persistent Prediction Dropdown List */}
       {showDropdown && (
         <View style={styles.dropdown}>
           {isLoading && predictions.length === 0 ? (
@@ -130,7 +129,7 @@ export function PlacesAutocompleteInput({
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={styles.loadingText}>Searching places in India...</Text>
             </View>
-          ) : (
+          ) : predictions.length > 0 ? (
             predictions.map((prediction, index) => (
               <TouchableOpacity
                 key={prediction.placeId}
@@ -158,6 +157,32 @@ export function PlacesAutocompleteInput({
                 </View>
               </TouchableOpacity>
             ))
+          ) : (
+            <TouchableOpacity
+              style={styles.predictionItem}
+              onPress={() =>
+                onSelectPrediction({
+                  placeId: `custom-${query}`,
+                  description: `${query}, Lucknow, Uttar Pradesh, India`,
+                  structuredFormatting: {
+                    mainText: query,
+                    secondaryText: 'Lucknow, Uttar Pradesh, India',
+                  },
+                })
+              }
+            >
+              <View style={styles.pinWrapper}>
+                <Text style={styles.pinIcon}>📍</Text>
+              </View>
+              <View style={styles.predictionTextWrapper}>
+                <Text style={styles.mainText} numberOfLines={1}>
+                  {query}
+                </Text>
+                <Text style={styles.secondaryText} numberOfLines={1}>
+                  Lucknow, Uttar Pradesh, India
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -175,18 +200,18 @@ export function PlacesAutocompleteInput({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    zIndex: 10,
+    zIndex: 999,
     marginBottom: spacing[4],
   },
 
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 28, 40, 0.95)',
+    backgroundColor: '#1A1C28',
     borderRadius: borderRadius['2xl'],
-    borderWidth: 1.5,
+    borderWidth: 2,
     paddingHorizontal: spacing[4],
-    paddingVertical: Platform.OS === 'ios' ? spacing[3.5] : spacing[2],
+    paddingVertical: Platform.OS === 'ios' ? spacing[3.5] : spacing[2.5],
     ...shadow.glow,
   },
 
@@ -198,7 +223,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     ...textStyles.body,
-    color: colors.dark.text,
+    color: '#FFFFFF',
+    fontSize: 16,
     padding: 0,
   },
 
@@ -213,18 +239,18 @@ const styles = StyleSheet.create({
   },
 
   voiceSearchBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
   },
 
   voiceIcon: {
-    fontSize: 16,
+    fontSize: 18,
   },
 
   loader: {
@@ -234,12 +260,13 @@ const styles = StyleSheet.create({
   // ── Dropdown ──────────────────────────────────────────────────────────────
 
   dropdown: {
-    backgroundColor: 'rgba(26, 28, 40, 0.98)',
+    backgroundColor: '#1E202E',
     borderRadius: borderRadius['2xl'],
-    borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderWidth: 2,
+    borderColor: '#F59E0B',
     marginTop: spacing[2],
     overflow: 'hidden',
+    zIndex: 9999,
     ...shadow.glow,
   },
 
@@ -259,8 +286,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3.5],
+    paddingVertical: spacing[4],
     gap: spacing[3],
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
 
   predictionItemBorder: {
@@ -269,16 +297,16 @@ const styles = StyleSheet.create({
   },
 
   pinWrapper: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   pinIcon: {
-    fontSize: 16,
+    fontSize: 18,
   },
 
   predictionTextWrapper: {
@@ -287,13 +315,15 @@ const styles = StyleSheet.create({
 
   mainText: {
     ...textStyles.bodyMedium,
-    color: colors.dark.text,
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
   secondaryText: {
     ...textStyles.caption,
-    color: colors.dark.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 2,
+    fontSize: 13,
   },
 });
