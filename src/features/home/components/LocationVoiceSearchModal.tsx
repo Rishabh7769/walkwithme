@@ -1,11 +1,8 @@
 /**
  * WalkWithMe — Native Expo Go & Web Voice Search Engine
  *
- * Fully supports:
- * - Native Mobile Expo Go (Android & iOS via expo-av native microphone recording)
- * - Web Speech API (Chrome, Edge, Safari)
- * - Auto-request native mic permissions in Expo Go
- * - Instant 1-tap navigation launch for any place name worldwide in India
+ * NO HARDCODED FALLBACKS!
+ * Requires the user to actually speak or select a place before searching.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -31,7 +28,6 @@ interface LocationVoiceSearchModalProps {
 }
 
 const POPULAR_INDIAN_DESTINATIONS = [
-  "Sunder Village Semra Lucknow",
   "Semra Lucknow Uttar Pradesh",
   "Hazratganj Lucknow",
   "Gomti Nagar Lucknow",
@@ -78,7 +74,7 @@ export function LocationVoiceSearchModal({
     );
     pulseLoop.start();
 
-    // ── Native Mobile Expo Go Voice Recording (expo-av) ──────────────────────
+    // Native Mobile Expo Go Voice Recording (expo-av)
     if (Platform.OS !== 'web') {
       (async () => {
         const granted = await requestAudioPermission();
@@ -88,14 +84,14 @@ export function LocationVoiceSearchModal({
             setIsNativeRecording(true);
             setStatusMessage('Expo Go Mic active 🎤 Speak your destination now...');
           } else {
-            setStatusMessage('Mic initialized. Speak or tap destination below:');
+            setStatusMessage('Mic active. Speak or type destination below:');
           }
         } else {
-          setStatusMessage('Mic permission denied in Expo Go. Tap or type below:');
+          setStatusMessage('Mic permission denied. Type destination below:');
         }
       })();
     } else {
-      // ── Web Speech API ───────────────────────────────────────────────────
+      // Web Speech API
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -127,20 +123,20 @@ export function LocationVoiceSearchModal({
 
                 recognition.onerror = (err: any) => {
                   console.warn('[VoiceSearch] Mic Error:', err);
-                  setStatusMessage('Speak clearly or tap any destination below:');
+                  setStatusMessage('Speak clearly or type destination below:');
                 };
 
                 recognition.onend = () => {};
 
                 recognition.start();
               } catch (e) {
-                setStatusMessage('Tap or type any destination below to navigate:');
+                setStatusMessage('Type any destination below to navigate:');
               }
             }
           })
           .catch((err) => {
             console.warn('[VoiceSearch] Web Mic Error:', err);
-            setStatusMessage('Mic permission blocked. Tap or type destination below:');
+            setStatusMessage('Mic blocked. Type destination below:');
           });
       }
     }
@@ -157,14 +153,13 @@ export function LocationVoiceSearchModal({
   }, [visible]);
 
   const handleStartSearch = async (targetLocation?: string) => {
-    let target = (targetLocation || spokenText).trim();
+    const target = (targetLocation || spokenText).trim();
+
+    // NO HARDCODED FALLBACK! If target is empty, do nothing.
+    if (!target) return;
 
     if (Platform.OS !== 'web' && isNativeRecording) {
       await stopRecordingAudio();
-    }
-
-    if (!target) {
-      target = "Sunder Village Semra Lucknow";
     }
 
     if (recognitionRef.current) {
@@ -216,10 +211,10 @@ export function LocationVoiceSearchModal({
 
           {/* Spoken Text Box */}
           <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptLabel}>Spoken Destination:</Text>
+            <Text style={styles.transcriptLabel}>Destination:</Text>
             <TextInput
               style={styles.transcriptInput}
-              placeholder="Speak or type location (e.g. Semra Lucknow)..."
+              placeholder="Speak or type location..."
               placeholderTextColor="rgba(245, 158, 11, 0.4)"
               value={spokenText}
               onChangeText={setSpokenText}
@@ -256,10 +251,11 @@ export function LocationVoiceSearchModal({
 
             <TouchableOpacity
               onPress={() => handleStartSearch()}
-              style={styles.searchBtn}
+              style={[styles.searchBtn, !spokenText.trim() && styles.searchBtnDisabled]}
+              disabled={!spokenText.trim()}
             >
               <LinearGradient
-                colors={['#10B981', '#F59E0B']}
+                colors={spokenText.trim() ? ['#10B981', '#F59E0B'] : ['#2A2D40', '#2A2D40']}
                 style={styles.searchGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -430,6 +426,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     overflow: 'hidden',
     ...shadow.glow,
+  },
+
+  searchBtnDisabled: {
+    opacity: 0.4,
   },
 
   searchGradient: {
