@@ -1,10 +1,7 @@
 /**
- * WalkWithMe — React Query Hooks for Google Places
+ * WalkWithMe — Instant Places Autocomplete Hook
  *
- * Hooks:
- * - usePlaceAutocomplete: Debounced predictions search
- * - usePlaceDetails: Fetch place details by placeId
- * - useNearbyLandmarks: Fetch landmarks surrounding current location
+ * Provides real-time instant place prediction search as soon as 1 character is typed!
  */
 
 import { useState, useEffect } from 'react';
@@ -13,10 +10,7 @@ import { getPlacePredictions, getPlaceDetails, getNearbyLandmarks } from '@/serv
 import { useUserStore } from '@/store/useUserStore';
 import type { Coordinates, PlacePrediction, PlaceDetailsResponse } from '@/types';
 
-/**
- * Custom debounced value hook
- */
-function useDebounce<T>(value: T, delayMs = 300): T {
+function useDebounce<T>(value: T, delayMs = 100): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
@@ -28,10 +22,10 @@ function useDebounce<T>(value: T, delayMs = 300): T {
 }
 
 /**
- * Hook for Google Places Autocomplete predictions with debouncing.
+ * Hook for Places Autocomplete predictions with instant 100ms response.
  */
 export function usePlaceAutocomplete(query: string) {
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, 100);
   const { profile } = useUserStore();
 
   return useQuery<PlacePrediction[]>({
@@ -39,8 +33,8 @@ export function usePlaceAutocomplete(query: string) {
     queryFn: async ({ signal }) => {
       return getPlacePredictions(debouncedQuery, profile.languagePreference, signal);
     },
-    enabled: debouncedQuery.trim().length >= 2,
-    staleTime: 60 * 1000, // Cache for 1 minute
+    enabled: debouncedQuery.trim().length >= 1,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -57,7 +51,7 @@ export function usePlaceDetails(placeId: string | null) {
       return getPlaceDetails(placeId, profile.languagePreference);
     },
     enabled: Boolean(placeId),
-    staleTime: 10 * 60 * 1000, // Cache details for 10 minutes
+    staleTime: 10 * 60 * 1000,
   });
 }
 

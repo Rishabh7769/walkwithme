@@ -78,7 +78,7 @@ export function PlacesAutocompleteInput({
     outputRange: ['rgba(245, 158, 11, 0.3)', '#10B981'],
   });
 
-  const showDropdown = query.trim().length >= 2 && (predictions.length > 0 || isLoading);
+  const showDropdown = query.trim().length >= 1 && (predictions.length > 0 || isLoading);
 
   return (
     <View style={styles.container}>
