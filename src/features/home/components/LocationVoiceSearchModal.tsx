@@ -1,8 +1,10 @@
 /**
- * WalkWithMe — Google Maps Style Hands-Free Voice Search Engine
+ * WalkWithMe — High-Precision Voice Search Engine (Google Maps Hands-Free Speech)
  *
- * Captures ANY spoken place name worldwide in India (or anywhere) using real-time
- * Speech-to-Text transcription and automatically launches turn-by-turn navigation!
+ * Features:
+ * - Requests browser microphone audio permissions explicitly via getUserMedia({ audio: true })
+ * - Uses Web Speech API with full transcript accumulation across all Chrome, Edge & Safari browsers
+ * - Auto-submits navigation as soon as speech finishes, or allows 1-tap giant mic button trigger!
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -37,12 +39,13 @@ export function LocationVoiceSearchModal({
   const pulseOpacity = useRef(new Animated.Value(0.6)).current;
 
   const recognitionRef = useRef<any>(null);
+  const mediaStreamRef = useRef<any>(null);
 
   useEffect(() => {
     if (!visible) return;
 
     setSpokenText('');
-    setStatusMessage('Listening... Speak any destination now');
+    setStatusMessage('Requesting microphone access...');
 
     // Pulse animation for central mic orb
     const pulseLoop = Animated.loop(
@@ -59,52 +62,68 @@ export function LocationVoiceSearchModal({
     );
     pulseLoop.start();
 
-    // Start Web Speech API Recognition
+    // Start Web Speech API Recognition with Microphone Permission
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      if (SpeechRecognition) {
-        try {
-          const recognition = new SpeechRecognition();
-          recognitionRef.current = recognition;
-          recognition.continuous = true;
-          recognition.interimResults = true;
-          recognition.lang = 'en-IN'; // Indian English / Hindi locale
+      // Request browser audio permission
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            mediaStreamRef.current = stream;
+            setStatusMessage('Microphone active. Speak your destination now!');
 
-          recognition.onstart = () => {
-            setStatusMessage('Listening... Speak any place name now!');
-          };
+            if (SpeechRecognition) {
+              try {
+                const recognition = new SpeechRecognition();
+                recognitionRef.current = recognition;
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN'; // Indian English / Hindi accent support
 
-          recognition.onresult = (event: any) => {
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-              transcript += event.results[i][0].transcript;
+                recognition.onstart = () => {
+                  setStatusMessage('Listening... Speak any place name now!');
+                };
+
+                recognition.onresult = (event: any) => {
+                  let fullTranscript = '';
+                  for (let i = 0; i < event.results.length; i++) {
+                    fullTranscript += event.results[i][0].transcript;
+                  }
+                  const cleanTranscript = fullTranscript.trim();
+                  if (cleanTranscript) {
+                    setSpokenText(cleanTranscript);
+                    setStatusMessage(`Transcribed: "${cleanTranscript}"`);
+
+                    // If final speech segment detected, auto-launch navigation!
+                    if (event.results[0] && event.results[0].isFinal) {
+                      setTimeout(() => {
+                        onSelectLocation(cleanTranscript);
+                        onClose();
+                      }, 500);
+                    }
+                  }
+                };
+
+                recognition.onerror = (err: any) => {
+                  console.warn('[VoiceSearch] Recognition error:', err);
+                  setStatusMessage('Listening... Speak clearly or type your destination below.');
+                };
+
+                recognition.onend = () => {
+                  setStatusMessage('Speech ended. Tap Navigate Now below.');
+                };
+
+                recognition.start();
+              } catch (e) {
+                console.warn('[VoiceSearch] Failed to initialize SpeechRecognition:', e);
+              }
             }
-            const cleanTranscript = transcript.trim();
-            if (cleanTranscript) {
-              setSpokenText(cleanTranscript);
-              setStatusMessage(`Transcribed: "${cleanTranscript}"`);
-            }
-          };
-
-          recognition.onerror = (err: any) => {
-            console.warn('[VoiceSearch] Recognition error:', err);
-            if (err.error === 'not-allowed') {
-              setStatusMessage('Microphone access denied. Please allow mic in browser.');
-            } else {
-              setStatusMessage('Listening... Speak clearly or type below.');
-            }
-          };
-
-          recognition.onend = () => {};
-
-          recognition.start();
-        } catch (e) {
-          console.warn('[VoiceSearch] Failed to start speech recognition:', e);
-          setStatusMessage('Type any destination below to navigate.');
-        }
-      } else {
-        setStatusMessage('Speech API unavailable. Type any destination below.');
+          })
+          .catch((err) => {
+            console.warn('[VoiceSearch] Mic access denied:', err);
+            setStatusMessage('Microphone access blocked. Please allow mic permissions in your browser.');
+          });
       }
     }
 
@@ -112,6 +131,11 @@ export function LocationVoiceSearchModal({
       pulseLoop.stop();
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
+      }
+      if (mediaStreamRef.current) {
+        try {
+          mediaStreamRef.current.getTracks().forEach((track: any) => track.stop());
+        } catch (e) {}
       }
     };
   }, [visible]);
@@ -146,7 +170,7 @@ export function LocationVoiceSearchModal({
             onPress={() => handleStartSearch()}
             style={styles.micOrbContainer}
             activeOpacity={0.8}
-            accessibilityLabel="Tap mic to start search"
+            accessibilityLabel="Tap mic to search spoken text"
           >
             <Animated.View
               style={[
@@ -169,10 +193,10 @@ export function LocationVoiceSearchModal({
 
           {/* Live Transcribed Spoken Text Input Box */}
           <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptLabel}>Spoken Location:</Text>
+            <Text style={styles.transcriptLabel}>Spoken Location (Live):</Text>
             <TextInput
               style={styles.transcriptInput}
-              placeholder="Say any place (e.g. Connaught Place, Semra Lucknow)..."
+              placeholder="Speak any destination (e.g. Connaught Place, Semra Lucknow)..."
               placeholderTextColor="rgba(245, 158, 11, 0.4)"
               value={spokenText}
               onChangeText={setSpokenText}
@@ -233,7 +257,7 @@ const styles = StyleSheet.create({
 
   subtitle: {
     ...textStyles.body,
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
     marginBottom: spacing[8],
   },
