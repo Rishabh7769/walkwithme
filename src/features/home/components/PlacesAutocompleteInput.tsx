@@ -1,8 +1,8 @@
 /**
- * WalkWithMe — Places Autocomplete Input Component
+ * WalkWithMe — Places Autocomplete Input Component (Gold & Emerald Glass Theme - NO BLUE)
  *
- * Renders a glassmorphic search bar with live autocomplete prediction list
- * and a 🎤 Voice Search button for hands-free location queries in India.
+ * Renders a luxury dark glassmorphic search bar with live autocomplete prediction list
+ * and a 🎤 Voice Search button for hands-free Indian location queries.
  */
 
 import { useState, useRef } from 'react';
@@ -32,7 +32,7 @@ export function PlacesAutocompleteInput({
   query,
   onQueryChange,
   onSelectPrediction,
-  placeholder = 'Search places in India (e.g. Semra Lucknow)...',
+  placeholder = 'Search places in India (e.g. Sunder Village Semra)...',
 }: PlacesAutocompleteInputProps) {
   const { data: predictions = [], isLoading } = usePlaceAutocomplete(query);
   const inputBorderAnim = useRef(new Animated.Value(0)).current;
@@ -55,13 +55,15 @@ export function PlacesAutocompleteInput({
   };
 
   const handleVoiceSearchResult = (transcription: string) => {
-    onQueryChange(transcription);
+    if (transcription.trim()) {
+      onQueryChange(transcription.trim());
+    }
     setIsVoiceModalOpen(false);
   };
 
   const borderColor = inputBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(99, 102, 241, 0.25)', '#6366F1'],
+    outputRange: ['rgba(245, 158, 11, 0.3)', '#10B981'],
   });
 
   const showDropdown = query.trim().length >= 2 && (predictions.length > 0 || isLoading);
@@ -74,7 +76,7 @@ export function PlacesAutocompleteInput({
         <TextInput
           style={styles.searchInput}
           placeholder={placeholder}
-          placeholderTextColor="rgba(192, 192, 204, 0.5)"
+          placeholderTextColor="rgba(194, 197, 220, 0.4)"
           value={query}
           onChangeText={onQueryChange}
           onFocus={handleFocus}
@@ -168,7 +170,7 @@ const styles = StyleSheet.create({
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(28, 28, 40, 0.85)',
+    backgroundColor: 'rgba(26, 28, 40, 0.95)',
     borderRadius: borderRadius['2xl'],
     borderWidth: 1.5,
     paddingHorizontal: spacing[4],
@@ -199,14 +201,14 @@ const styles = StyleSheet.create({
   },
 
   voiceSearchBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   },
 
   voiceIcon: {
@@ -220,10 +222,10 @@ const styles = StyleSheet.create({
   // ── Dropdown ──────────────────────────────────────────────────────────────
 
   dropdown: {
-    backgroundColor: 'rgba(28, 28, 40, 0.95)',
+    backgroundColor: 'rgba(26, 28, 40, 0.98)',
     borderRadius: borderRadius['2xl'],
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
     marginTop: spacing[2],
     overflow: 'hidden',
     ...shadow.glow,
@@ -255,10 +257,10 @@ const styles = StyleSheet.create({
   },
 
   pinWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },

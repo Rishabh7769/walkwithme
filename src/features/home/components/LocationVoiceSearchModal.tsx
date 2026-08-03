@@ -1,8 +1,8 @@
 /**
- * WalkWithMe — Location Voice Search Modal
+ * WalkWithMe — High-Precision Location Voice Search Modal (NO BLUE, Gold & Emerald Theme)
  *
- * Listens to spoken location queries using Web Speech API / native voice input
- * and transcribes exact spoken Indian locations (e.g. "Sunder Village Semra Lucknow").
+ * Transcribes 100% exact spoken or typed location strings (e.g. "Sunder Village Semra Lucknow UP India")
+ * directly into the search bar without truncating or altering words!
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   Animated,
   Platform,
@@ -23,15 +24,6 @@ interface LocationVoiceSearchModalProps {
   onClose: () => void;
   onSelectLocation: (locationText: string) => void;
 }
-
-const INDIAN_VOICE_PRESETS = [
-  "Sunder Village Semra Lucknow",
-  "Hazratganj Lucknow",
-  "Gomti Nagar Lucknow",
-  "Sector 18 Market Noida",
-  "Connaught Place New Delhi",
-  "Indira Gandhi Airport Delhi",
-];
 
 export function LocationVoiceSearchModal({
   visible,
@@ -65,22 +57,25 @@ export function LocationVoiceSearchModal({
     );
     pulseLoop.start();
 
-    // Try Web Speech Recognition if on Web
+    // Try Web Speech Recognition if available
     let recognition: any = null;
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         try {
           recognition = new SpeechRecognition();
-          recognition.continuous = false;
+          recognition.continuous = true;
           recognition.interimResults = true;
-          recognition.lang = 'en-IN'; // Indian English / Hindi accent support
+          recognition.lang = 'en-IN'; // Indian English / Hindi locale
 
           recognition.onresult = (event: any) => {
-            const transcript = Array.from(event.results)
-              .map((result: any) => result[0].transcript)
-              .join('');
-            setSpokenText(transcript);
+            let fullTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              fullTranscript += event.results[i][0].transcript;
+            }
+            if (fullTranscript.trim()) {
+              setSpokenText(fullTranscript.trim());
+            }
           };
 
           recognition.onerror = () => {
@@ -93,7 +88,7 @@ export function LocationVoiceSearchModal({
 
           recognition.start();
         } catch (e) {
-          // Fallback
+          // Fallback to manual text input
         }
       }
     }
@@ -107,13 +102,16 @@ export function LocationVoiceSearchModal({
   }, [visible]);
 
   const handleDone = () => {
-    const finalLocation = spokenText.trim() || INDIAN_VOICE_PRESETS[0]!;
-    onSelectLocation(finalLocation);
+    const finalLocation = spokenText.trim();
+    if (finalLocation) {
+      onSelectLocation(finalLocation);
+    }
     onClose();
   };
 
-  const handlePresetTap = (preset: string) => {
-    onSelectLocation(preset);
+  const handleQuickLocation = (loc: string) => {
+    setSpokenText(loc);
+    onSelectLocation(loc);
     onClose();
   };
 
@@ -123,19 +121,19 @@ export function LocationVoiceSearchModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={['rgba(11, 12, 16, 0.98)', 'rgba(30, 27, 75, 0.98)']}
+          colors={['rgba(8, 9, 13, 0.98)', 'rgba(32, 35, 51, 0.98)']}
           style={StyleSheet.absoluteFill}
         />
 
         <View style={styles.content}>
           <Text style={styles.statusTitle}>
-            {isListening ? '🎤 Listening for Location...' : 'Voice Search'}
+            {isListening ? '🎤 Speaking Location...' : 'Voice Search'}
           </Text>
           <Text style={styles.statusSubtitle}>
-            Speak any place name in India (e.g. "Sunder Village Semra Lucknow")
+            Speak or edit your exact location in India (e.g. Sunder Village Semra Lucknow)
           </Text>
 
-          {/* Animated Pulsing Mic Orb */}
+          {/* Animated Pulsing Mic Orb (Gold & Emerald Theme) */}
           <View style={styles.micOrbContainer}>
             <Animated.View
               style={[
@@ -147,7 +145,7 @@ export function LocationVoiceSearchModal({
               ]}
             />
             <LinearGradient
-              colors={['#00F2FE', '#4FACFE']}
+              colors={['#10B981', '#F59E0B']}
               style={styles.micOrb}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -156,25 +154,36 @@ export function LocationVoiceSearchModal({
             </LinearGradient>
           </View>
 
-          {/* Transcribed Spoken Text Box */}
+          {/* Real-time Editable Transcribed Input Box */}
           <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptText}>
-              {spokenText ? `"${spokenText}"` : 'Listening to your voice...'}
-            </Text>
+            <TextInput
+              style={styles.transcriptInput}
+              placeholder="Speak or type location here..."
+              placeholderTextColor="rgba(245, 158, 11, 0.5)"
+              value={spokenText}
+              onChangeText={setSpokenText}
+              multiline
+              autoFocus
+              accessibilityLabel="Transcribed speech location text"
+            />
           </View>
 
-          {/* Quick Voice Location Presets */}
-          <Text style={styles.presetsLabel}>Or tap a voice location preset:</Text>
+          {/* Quick Real Indian Locations */}
+          <Text style={styles.presetsLabel}>Tap exact location preset:</Text>
           <View style={styles.presetsGrid}>
-            {INDIAN_VOICE_PRESETS.slice(0, 4).map((preset, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.presetChip}
-                onPress={() => handlePresetTap(preset)}
-              >
-                <Text style={styles.presetChipText}>📍 {preset}</Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity
+              style={styles.presetChip}
+              onPress={() => handleQuickLocation("Sunder Village Semra Lucknow")}
+            >
+              <Text style={styles.presetChipText}>📍 Sunder Village Semra Lucknow</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.presetChip}
+              onPress={() => handleQuickLocation("Semra Lucknow Uttar Pradesh")}
+            >
+              <Text style={styles.presetChipText}>📍 Semra Lucknow Uttar Pradesh</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Actions */}
@@ -185,7 +194,7 @@ export function LocationVoiceSearchModal({
 
             <TouchableOpacity onPress={handleDone} style={styles.doneButton}>
               <LinearGradient
-                colors={['#00F2FE', '#4FACFE']}
+                colors={['#10B981', '#F59E0B']}
                 style={styles.doneGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -211,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[6],
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
   },
 
   statusTitle: {
@@ -225,7 +234,7 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
-    marginBottom: spacing[8],
+    marginBottom: spacing[6],
   },
 
   micOrbContainer: {
@@ -236,41 +245,42 @@ const styles = StyleSheet.create({
 
   micPulseRing: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(0, 242, 254, 0.25)',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
   },
 
   micOrb: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.glow,
   },
 
   micEmoji: {
-    fontSize: 40,
+    fontSize: 36,
   },
 
   transcriptBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius.xl,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    marginBottom: spacing[6],
+    marginBottom: spacing[4],
     width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.3)',
-    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    minHeight: 56,
   },
 
-  transcriptText: {
+  transcriptInput: {
     ...textStyles.bodyMedium,
-    color: '#00F2FE',
-    textAlign: 'center',
+    color: '#F59E0B',
+    fontSize: 16,
+    padding: 0,
   },
 
   presetsLabel: {
@@ -283,16 +293,16 @@ const styles = StyleSheet.create({
   presetsGrid: {
     width: '100%',
     gap: spacing[2],
-    marginBottom: spacing[8],
+    marginBottom: spacing[6],
   },
 
   presetChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2.5],
+    paddingVertical: spacing[3],
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(245, 158, 11, 0.25)',
   },
 
   presetChipText: {
@@ -335,7 +345,7 @@ const styles = StyleSheet.create({
 
   doneText: {
     ...textStyles.button,
-    color: '#0B0C10',
+    color: '#08090D',
     fontWeight: '700',
   },
 });
