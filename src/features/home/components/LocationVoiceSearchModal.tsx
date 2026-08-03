@@ -1,10 +1,10 @@
 /**
- * WalkWithMe — High-Precision Voice Search Engine (Google Maps Hands-Free Speech)
+ * WalkWithMe — Universal Voice & Location Search Engine
  *
- * Features:
- * - Requests browser microphone audio permissions explicitly via getUserMedia({ audio: true })
- * - Uses Web Speech API with full transcript accumulation across all Chrome, Edge & Safari browsers
- * - Auto-submits navigation as soon as speech finishes, or allows 1-tap giant mic button trigger!
+ * Universal Speech Engine supporting:
+ * - Web Speech API (Chrome, Edge, Safari)
+ * - HTTP fallback for browsers blocking mic streams on non-SSL IPs
+ * - Instant 1-tap location suggestions & editable text box
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -17,6 +17,7 @@ import {
   Animated,
   Platform,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { textStyles, spacing, borderRadius, shadow } from '@/theme';
@@ -26,6 +27,19 @@ interface LocationVoiceSearchModalProps {
   onClose: () => void;
   onSelectLocation: (locationText: string) => void;
 }
+
+const POPULAR_INDIAN_DESTINATIONS = [
+  "Sunder Village Semra Lucknow",
+  "Semra Lucknow Uttar Pradesh",
+  "Hazratganj Lucknow",
+  "Gomti Nagar Lucknow",
+  "Connaught Place New Delhi",
+  "Taj Mahal Agra",
+  "Bandra Terminus Mumbai",
+  "Sector 18 Market Noida",
+  "AIIMS Hospital Delhi",
+  "MG Road Bengaluru",
+];
 
 export function LocationVoiceSearchModal({
   visible,
@@ -39,13 +53,12 @@ export function LocationVoiceSearchModal({
   const pulseOpacity = useRef(new Animated.Value(0.6)).current;
 
   const recognitionRef = useRef<any>(null);
-  const mediaStreamRef = useRef<any>(null);
 
   useEffect(() => {
     if (!visible) return;
 
     setSpokenText('');
-    setStatusMessage('Requesting microphone access...');
+    setStatusMessage('Listening... Speak any place or tap below');
 
     // Pulse animation for central mic orb
     const pulseLoop = Animated.loop(
@@ -62,68 +75,55 @@ export function LocationVoiceSearchModal({
     );
     pulseLoop.start();
 
-    // Start Web Speech API Recognition with Microphone Permission
+    // Initialize Web Speech Recognition
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      // Request browser audio permission
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then((stream) => {
-            mediaStreamRef.current = stream;
-            setStatusMessage('Microphone active. Speak your destination now!');
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognitionRef.current = recognition;
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = 'en-IN';
 
-            if (SpeechRecognition) {
-              try {
-                const recognition = new SpeechRecognition();
-                recognitionRef.current = recognition;
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.lang = 'en-IN'; // Indian English / Hindi accent support
+          recognition.onstart = () => {
+            setStatusMessage('Microphone active! Speak any place name now...');
+          };
 
-                recognition.onstart = () => {
-                  setStatusMessage('Listening... Speak any place name now!');
-                };
-
-                recognition.onresult = (event: any) => {
-                  let fullTranscript = '';
-                  for (let i = 0; i < event.results.length; i++) {
-                    fullTranscript += event.results[i][0].transcript;
-                  }
-                  const cleanTranscript = fullTranscript.trim();
-                  if (cleanTranscript) {
-                    setSpokenText(cleanTranscript);
-                    setStatusMessage(`Transcribed: "${cleanTranscript}"`);
-
-                    // If final speech segment detected, auto-launch navigation!
-                    if (event.results[0] && event.results[0].isFinal) {
-                      setTimeout(() => {
-                        onSelectLocation(cleanTranscript);
-                        onClose();
-                      }, 500);
-                    }
-                  }
-                };
-
-                recognition.onerror = (err: any) => {
-                  console.warn('[VoiceSearch] Recognition error:', err);
-                  setStatusMessage('Listening... Speak clearly or type your destination below.');
-                };
-
-                recognition.onend = () => {
-                  setStatusMessage('Speech ended. Tap Navigate Now below.');
-                };
-
-                recognition.start();
-              } catch (e) {
-                console.warn('[VoiceSearch] Failed to initialize SpeechRecognition:', e);
-              }
+          recognition.onresult = (event: any) => {
+            let current = '';
+            for (let i = 0; i < event.results.length; i++) {
+              current += event.results[i][0].transcript;
             }
-          })
-          .catch((err) => {
-            console.warn('[VoiceSearch] Mic access denied:', err);
-            setStatusMessage('Microphone access blocked. Please allow mic permissions in your browser.');
-          });
+            const clean = current.trim();
+            if (clean) {
+              setSpokenText(clean);
+              setStatusMessage(`Transcribed: "${clean}"`);
+            }
+          };
+
+          recognition.onerror = (err: any) => {
+            console.warn('[VoiceSearch] Mic Error:', err);
+            if (err.error === 'not-allowed') {
+              setStatusMessage('Browser blocked mic (HTTP connection). Tap or type destination below:');
+            } else {
+              setStatusMessage('Speak clearly or tap any destination below:');
+            }
+          };
+
+          recognition.onend = () => {};
+
+          try {
+            recognition.start();
+          } catch (e) {
+            // Ignore start error
+          }
+        } catch (e) {
+          setStatusMessage('Tap or type any destination below to navigate:');
+        }
+      } else {
+        setStatusMessage('Speech API unavailable. Tap or type any destination below:');
       }
     }
 
@@ -132,16 +132,11 @@ export function LocationVoiceSearchModal({
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
-      if (mediaStreamRef.current) {
-        try {
-          mediaStreamRef.current.getTracks().forEach((track: any) => track.stop());
-        } catch (e) {}
-      }
     };
   }, [visible]);
 
-  const handleStartSearch = (textToSearch?: string) => {
-    const target = (textToSearch || spokenText).trim();
+  const handleStartSearch = (targetLocation?: string) => {
+    const target = (targetLocation || spokenText).trim();
     if (target) {
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
@@ -162,7 +157,7 @@ export function LocationVoiceSearchModal({
         />
 
         <View style={styles.content}>
-          <Text style={styles.title}>🎤 Google Maps Voice Search</Text>
+          <Text style={styles.title}>🎤 Voice & Quick Search</Text>
           <Text style={styles.subtitle}>{statusMessage}</Text>
 
           {/* Central Pulsing Mic Orb */}
@@ -170,7 +165,6 @@ export function LocationVoiceSearchModal({
             onPress={() => handleStartSearch()}
             style={styles.micOrbContainer}
             activeOpacity={0.8}
-            accessibilityLabel="Tap mic to search spoken text"
           >
             <Animated.View
               style={[
@@ -191,19 +185,39 @@ export function LocationVoiceSearchModal({
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Live Transcribed Spoken Text Input Box */}
+          {/* Editable Transcribed Input Box */}
           <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptLabel}>Spoken Location (Live):</Text>
+            <Text style={styles.transcriptLabel}>Destination:</Text>
             <TextInput
               style={styles.transcriptInput}
-              placeholder="Speak any destination (e.g. Connaught Place, Semra Lucknow)..."
+              placeholder="Speak or type location (e.g. Semra Lucknow)..."
               placeholderTextColor="rgba(245, 158, 11, 0.4)"
               value={spokenText}
               onChangeText={setSpokenText}
-              multiline
-              accessibilityLabel="Transcribed spoken location input"
+              autoFocus
+              accessibilityLabel="Spoken location input text"
             />
           </View>
+
+          {/* Popular Destinations Scroll Grid */}
+          <Text style={styles.presetsLabel}>OR TAP 1-CLICK DESTINATION BELOW:</Text>
+          <ScrollView
+            style={styles.presetsScrollView}
+            contentContainerStyle={styles.presetsGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {POPULAR_INDIAN_DESTINATIONS.map((dest, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.presetChip}
+                onPress={() => handleStartSearch(dest)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.presetIcon}>📍</Text>
+                <Text style={styles.presetText} numberOfLines={1}>{dest}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {/* Giant Action Buttons */}
           <View style={styles.actionRow}>
@@ -242,9 +256,10 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     paddingHorizontal: spacing[5],
-    paddingVertical: spacing[6],
+    paddingVertical: spacing[5],
     width: '92%',
     maxWidth: 440,
+    maxHeight: '92%',
   },
 
   title: {
@@ -259,42 +274,43 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
-    marginBottom: spacing[8],
+    marginBottom: spacing[5],
+    fontSize: 14,
   },
 
   micOrbContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[8],
+    marginBottom: spacing[5],
   },
 
   micPulseRing: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
     backgroundColor: 'rgba(16, 185, 129, 0.25)',
   },
 
   micOrb: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.glow,
   },
 
   micEmoji: {
-    fontSize: 42,
+    fontSize: 38,
   },
 
   transcriptBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: borderRadius['2xl'],
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[4],
-    marginBottom: spacing[8],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    marginBottom: spacing[4],
     width: '100%',
     borderWidth: 2,
     borderColor: '#F59E0B',
@@ -302,7 +318,7 @@ const styles = StyleSheet.create({
 
   transcriptLabel: {
     ...textStyles.caption,
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255, 255, 255, 0.5)',
     marginBottom: spacing[1],
     textTransform: 'uppercase',
@@ -312,9 +328,50 @@ const styles = StyleSheet.create({
   transcriptInput: {
     ...textStyles.bodyMedium,
     color: '#F59E0B',
-    fontSize: 18,
+    fontSize: 17,
     padding: 0,
     fontWeight: '700',
+  },
+
+  presetsLabel: {
+    ...textStyles.caption,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    alignSelf: 'flex-start',
+    marginBottom: spacing[2],
+    fontWeight: '700',
+  },
+
+  presetsScrollView: {
+    width: '100%',
+    maxHeight: 150,
+    marginBottom: spacing[5],
+  },
+
+  presetsGrid: {
+    gap: spacing[2],
+  },
+
+  presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    gap: spacing[3],
+  },
+
+  presetIcon: {
+    fontSize: 16,
+  },
+
+  presetText: {
+    ...textStyles.bodyMedium,
+    color: '#FFFFFF',
+    fontSize: 14,
   },
 
   actionRow: {
@@ -325,7 +382,7 @@ const styles = StyleSheet.create({
 
   cancelBtn: {
     flex: 1,
-    height: 58,
+    height: 54,
     borderRadius: borderRadius['2xl'],
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.25)',
@@ -336,12 +393,12 @@ const styles = StyleSheet.create({
   cancelText: {
     ...textStyles.button,
     color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
+    fontSize: 15,
   },
 
   searchBtn: {
     flex: 1.8,
-    height: 58,
+    height: 54,
     borderRadius: borderRadius['2xl'],
     overflow: 'hidden',
     ...shadow.glow,
@@ -360,7 +417,7 @@ const styles = StyleSheet.create({
   searchText: {
     ...textStyles.button,
     color: '#08090D',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
 });
