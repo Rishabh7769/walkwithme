@@ -1,25 +1,68 @@
 {
   "expo": {
-    "name": "walkwithme",
+    "name": "WalkWithMe",
     "slug": "walkwithme",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "walkwithme",
+    "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E1B4B"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.walkwithme.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E1B4B"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.walkwithme.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "VIBRATE"
+      ],
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "WalkWithMe needs your location to guide you along your route.",
+          "locationWhenInUsePermission": "WalkWithMe needs your location to guide you along your route."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "WalkWithMe needs camera access so the AI can help identify where you are."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8000",
+      "googleMapsKey": "",
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

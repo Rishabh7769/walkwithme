@@ -1,5 +1,3 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
@@ -8,6 +6,12 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+
+# Local env files & keys (NEVER COMMIT KEYS)
+.env
+.env.local
+.env*.local
+backend/.env
 
 # Native
 .kotlin/
@@ -29,9 +33,6 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
-
-# local env files
-.env*.local
 
 # typescript
 *.tsbuildinfo
