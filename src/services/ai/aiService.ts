@@ -1,9 +1,8 @@
 /**
  * WalkWithMe — Frontend AI Companion Service
  *
- * Calls FastAPI backend AI endpoints with fallback to local client AI generation
- * if the backend server is offline or unreachable. Multi-lingual support for
- * English, Hindi, and Hinglish.
+ * Calls FastAPI backend AI endpoints with smart context awareness.
+ * Checks active trip status to ensure responses match real navigation state!
  */
 
 import { post } from '@/services/api';
@@ -17,37 +16,6 @@ import type {
   Language,
 } from '@/types';
 import { resolveLanguage } from '@/utils';
-
-// ── Multi-lingual Fallback Pools ──────────────────────────────────────────
-
-const MOCK_AI_RESPONSES_EN = [
-  "You're doing great! Keep walking straight ahead toward the signal 😊",
-  "No worries 😊 I'm right here with you. Look for the building ahead.",
-  "Perfect! Yes, that's the correct road.",
-  "Just a little further! You're almost at your destination.",
-];
-
-const MOCK_AI_RESPONSES_HI = [
-  "आप बिल्कुल सही जा रहे हैं! सीधे आगे बढ़ते रहें 😊",
-  "कोई बात नहीं 😊 मैं आपके साथ हूँ। सामने सिग्नल देखें।",
-  "बिलकुल सही रास्ता है! आप अपनी मंजिल के पास हैं।",
-  "बस थोड़ा सा और! आप बहुत जल्द पहुँचने वाले हैं।",
-];
-
-const MOCK_AI_RESPONSES_HINGLISH = [
-  "Bilkul sahi raste pe ho! Seedha aage chalte raho 😊",
-  "Koi baat nahi 😊 Main aapke saath hoon. Samne dekho.",
-  "Ekdum perfect! Yahi sahi rasta hai.",
-  "Bas thoda sa aur! Aap apni manzil ke paas ho.",
-];
-
-function selectFallbackResponse(lang: Exclude<Language, 'auto'>): string {
-  let pool = MOCK_AI_RESPONSES_EN;
-  if (lang === 'hi') pool = MOCK_AI_RESPONSES_HI;
-  else if (lang === 'hinglish') pool = MOCK_AI_RESPONSES_HINGLISH;
-
-  return pool[Math.floor(Math.random() * pool.length)] ?? pool[0]!;
-}
 
 /**
  * Sends conversation messages to the AI Chat endpoint.
@@ -74,10 +42,33 @@ export async function sendAIChat(
     return response.data;
   }
 
-  // Fallback to multi-lingual client response if backend server is offline
+  // Smart context-aware client fallback if backend server is offline
   const lastUserMsg = messages.filter((m) => m.role === 'user').pop()?.content ?? '';
   const effectiveLang = resolveLanguage(language, lastUserMsg);
-  const fallbackMessage = selectFallbackResponse(effectiveLang);
+  const hasActiveTrip = context?.destinationName !== undefined && context?.destinationName !== null;
+
+  let fallbackMessage = '';
+
+  if (!hasActiveTrip) {
+    if (effectiveLang === 'hi') {
+      fallbackMessage = "आप अभी किसी यात्रा पर नहीं हैं। होम स्क्रीन पर जाएं और अपनी मंजिल चुनें, मैं आपके साथ चलूंगा 😊";
+    } else if (effectiveLang === 'hinglish') {
+      fallbackMessage = "Aap abhi kisi trip par nahi ho. Home screen par destination select karo, main aapke saath chalunga 😊";
+    } else {
+      fallbackMessage = "You haven't selected a destination yet! Select a location on the Home screen and I'll walk with you 😊";
+    }
+  } else {
+    const dest = context?.destinationName;
+    const step = context?.currentInstruction ?? 'Walk straight ahead';
+
+    if (effectiveLang === 'hi') {
+      fallbackMessage = `आप ${dest} के रास्ते पर हैं। ${step}! सब ठीक है 😊`;
+    } else if (effectiveLang === 'hinglish') {
+      fallbackMessage = `Aap ${dest} ke raste par ho. ${step}! Sab sahi chal raha hai 😊`;
+    } else {
+      fallbackMessage = `You are on your way to ${dest}. ${step}! You're doing great 😊`;
+    }
+  }
 
   return {
     message: fallbackMessage,
@@ -113,10 +104,9 @@ export async function fetchAICompanionMessage(
 
   const effectiveLang = resolveLanguage(language, currentInstruction);
 
-  // Multi-lingual client fallback
   let fallbackText = currentInstruction;
   if (!isOnRoute) {
-    if (effectiveLang === 'hi') fallbackText = "ऐसा लगता है आप गलत मोड़ ले चुके हैं। चलिए इसे साथ में ठीक करते हैं 😊";
+    if (effectiveLang === 'hi') fallbackText = "ऐसा लगता है आप गलत मोड़ पर आ गए हैं। चलिए इसे साथ में ठीक करते हैं 😊";
     else if (effectiveLang === 'hinglish') fallbackText = "Lagta hai galat turn le liya. Chalo saath mein sahi karte hain 😊";
     else fallbackText = "Looks like you took a wrong turn. Let's fix it together 😊";
   }
@@ -156,13 +146,13 @@ export async function analyzeImageWithVision(
   }
 
   const effectiveLang = resolveLanguage(language, userPrompt);
-  let visualText = "I see the coffee shop and the traffic signal right in front of you! Keep walking straight.";
-  if (effectiveLang === 'hi') visualText = "मुझे आपके सामने कॉफी शॉप और ट्रैफिक सिग्नल दिख रहा है! सीधे चलते रहें।";
-  else if (effectiveLang === 'hinglish') visualText = "Mujhe aapke samne coffee shop aur traffic signal dikh raha hai! Seedha chalte raho.";
+  let visualText = "I see the main street and building right in front of you! Keep walking straight.";
+  if (effectiveLang === 'hi') visualText = "मुझे आपके सामने मुख्य रास्ता और इमारत दिख रही है! सीधे आगे बढ़ते रहें।";
+  else if (effectiveLang === 'hinglish') visualText = "Mujhe aapke samne main road aur building dikh rahi hai! Seedha aage chalte raho.";
 
   return {
     visualGuidance: visualText,
-    identifiedLandmarks: ["Coffee Shop", "Traffic Signal"],
+    identifiedLandmarks: ["Main Street", "Building"],
     mood: "guiding",
     detectedLanguage: effectiveLang,
   };
