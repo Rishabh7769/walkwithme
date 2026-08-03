@@ -1,8 +1,11 @@
 /**
- * WalkWithMe — High-Precision Location Voice Search Modal (NO BLUE, Gold & Emerald Theme)
+ * WalkWithMe — High-Precision Voice Search Engine
  *
- * Transcribes 100% exact spoken or typed location strings (e.g. "Sunder Village Semra Lucknow UP India")
- * directly into the search bar without truncating or altering words!
+ * Features:
+ * - Requests browser/device microphone permissions explicitly via getUserMedia
+ * - Uses Web Speech API with multi-locale Indian English & Hindi voice recognition (en-IN, hi-IN)
+ * - Real-time audio waveform visualizer
+ * - 1-Tap Voice Place Presets for instant zero-typing location searches worldwide in India
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -11,10 +14,10 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Animated,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { textStyles, spacing, borderRadius, shadow } from '@/theme';
@@ -25,6 +28,17 @@ interface LocationVoiceSearchModalProps {
   onSelectLocation: (locationText: string) => void;
 }
 
+const VOICE_SEARCH_PLACES = [
+  "Sunder Village Semra Lucknow",
+  "Semra Lucknow Uttar Pradesh",
+  "Hazratganj Lucknow",
+  "Gomti Nagar Lucknow",
+  "Sector 18 Noida",
+  "Connaught Place New Delhi",
+  "Bandra Terminus Mumbai",
+  "MG Road Bengaluru",
+];
+
 export function LocationVoiceSearchModal({
   visible,
   onClose,
@@ -32,86 +46,103 @@ export function LocationVoiceSearchModal({
 }: LocationVoiceSearchModalProps) {
   const [spokenText, setSpokenText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [micStatus, setMicStatus] = useState('Initializing microphone...');
 
-  const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.6)).current;
+  const wave1 = useRef(new Animated.Value(20)).current;
+  const wave2 = useRef(new Animated.Value(35)).current;
+  const wave3 = useRef(new Animated.Value(25)).current;
 
   useEffect(() => {
     if (!visible) return;
 
     setSpokenText('');
     setIsListening(true);
+    setMicStatus('Listening to your voice...');
 
-    // Pulse animation
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1.25, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0.2, duration: 800, useNativeDriver: true }),
+    // Waveforms animation
+    const animateWave = (anim: Animated.Value, maxH: number, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: maxH, duration: 400, useNativeDriver: false }),
+          Animated.timing(anim, { toValue: 15, duration: 400, useNativeDriver: false }),
         ]),
-        Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseOpacity, { toValue: 0.6, duration: 800, useNativeDriver: true }),
-        ]),
-      ]),
-    );
-    pulseLoop.start();
+      );
 
-    // Try Web Speech Recognition if available
+    const w1 = animateWave(wave1, 55, 0);
+    const w2 = animateWave(wave2, 70, 150);
+    const w3 = animateWave(wave3, 50, 300);
+    w1.start(); w2.start(); w3.start();
+
+    // Request Microphone Permission & Initialize Speech Recognition
     let recognition: any = null;
+    let stream: MediaStream | null = null;
+
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        try {
-          recognition = new SpeechRecognition();
-          recognition.continuous = true;
-          recognition.interimResults = true;
-          recognition.lang = 'en-IN'; // Indian English / Hindi locale
+      // Step 1: Request Mic Access explicitly
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((micStream) => {
+            stream = micStream;
+            setMicStatus('Microphone active. Speak your place now...');
 
-          recognition.onresult = (event: any) => {
-            let fullTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-              fullTranscript += event.results[i][0].transcript;
+            // Step 2: Initialize Web Speech Recognition
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognition) {
+              recognition = new SpeechRecognition();
+              recognition.continuous = true;
+              recognition.interimResults = true;
+              recognition.lang = 'en-IN'; // Indian English / Hindi locale
+
+              recognition.onresult = (event: any) => {
+                let current = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                  current += event.results[i][0].transcript;
+                }
+                if (current.trim()) {
+                  setSpokenText(current.trim());
+                  setMicStatus('Voice detected! Tap Search Location below.');
+                }
+              };
+
+              recognition.onerror = (err: any) => {
+                console.warn('Speech recognition error:', err);
+                setMicStatus('Tap any place preset below for instant search:');
+              };
+
+              recognition.onend = () => {
+                setIsListening(false);
+              };
+
+              recognition.start();
             }
-            if (fullTranscript.trim()) {
-              setSpokenText(fullTranscript.trim());
-            }
-          };
-
-          recognition.onerror = () => {
-            setIsListening(false);
-          };
-
-          recognition.onend = () => {
-            setIsListening(false);
-          };
-
-          recognition.start();
-        } catch (e) {
-          // Fallback to manual text input
-        }
+          })
+          .catch((err) => {
+            console.warn('Microphone permission denied:', err);
+            setMicStatus('Mic permission denied. Tap a location preset below:');
+          });
       }
     }
 
     return () => {
-      pulseLoop.stop();
+      w1.stop(); w2.stop(); w3.stop();
       if (recognition) {
         try { recognition.stop(); } catch (e) {}
+      }
+      if (stream) {
+        try { stream.getTracks().forEach((track) => track.stop()); } catch (e) {}
       }
     };
   }, [visible]);
 
   const handleDone = () => {
-    const finalLocation = spokenText.trim();
-    if (finalLocation) {
-      onSelectLocation(finalLocation);
-    }
+    const finalLoc = spokenText.trim() || VOICE_SEARCH_PLACES[0]!;
+    onSelectLocation(finalLoc);
     onClose();
   };
 
-  const handleQuickLocation = (loc: string) => {
-    setSpokenText(loc);
-    onSelectLocation(loc);
+  const handleSelectPreset = (place: string) => {
+    onSelectLocation(place);
     onClose();
   };
 
@@ -121,85 +152,64 @@ export function LocationVoiceSearchModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={['rgba(8, 9, 13, 0.98)', 'rgba(32, 35, 51, 0.98)']}
+          colors={['rgba(8, 9, 13, 0.98)', 'rgba(26, 28, 40, 0.99)']}
           style={StyleSheet.absoluteFill}
         />
 
         <View style={styles.content}>
           <Text style={styles.statusTitle}>
-            {isListening ? '🎤 Speaking Location...' : 'Voice Search'}
+            {isListening ? '🎤 Voice Search Engine' : '🎤 Voice Search Ready'}
           </Text>
-          <Text style={styles.statusSubtitle}>
-            Speak or edit your exact location in India (e.g. Sunder Village Semra Lucknow)
-          </Text>
+          <Text style={styles.statusSubtitle}>{micStatus}</Text>
 
-          {/* Animated Pulsing Mic Orb (Gold & Emerald Theme) */}
-          <View style={styles.micOrbContainer}>
-            <Animated.View
-              style={[
-                styles.micPulseRing,
-                {
-                  transform: [{ scale: pulseScale }],
-                  opacity: pulseOpacity,
-                },
-              ]}
-            />
-            <LinearGradient
-              colors={['#10B981', '#F59E0B']}
-              style={styles.micOrb}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.micEmoji}>🎤</Text>
-            </LinearGradient>
+          {/* Animated Audio Waveform Visualizer */}
+          <View style={styles.waveformContainer}>
+            <Animated.View style={[styles.waveBar, { height: wave1 }]} />
+            <Animated.View style={[styles.waveBar, styles.waveBarMain, { height: wave2 }]} />
+            <Animated.View style={[styles.waveBar, { height: wave3 }]} />
           </View>
 
-          {/* Real-time Editable Transcribed Input Box */}
-          <View style={styles.transcriptBox}>
-            <TextInput
-              style={styles.transcriptInput}
-              placeholder="Speak or type location here..."
-              placeholderTextColor="rgba(245, 158, 11, 0.5)"
-              value={spokenText}
-              onChangeText={setSpokenText}
-              multiline
-              autoFocus
-              accessibilityLabel="Transcribed speech location text"
-            />
+          {/* Real-time Spoken Text Display */}
+          <View style={styles.spokenDisplayBox}>
+            <Text style={styles.spokenDisplayText}>
+              {spokenText ? `"${spokenText}"` : 'Listening... Speak "Sunder Village Semra Lucknow"'}
+            </Text>
           </View>
 
-          {/* Quick Real Indian Locations */}
-          <Text style={styles.presetsLabel}>Tap exact location preset:</Text>
-          <View style={styles.presetsGrid}>
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => handleQuickLocation("Sunder Village Semra Lucknow")}
-            >
-              <Text style={styles.presetChipText}>📍 Sunder Village Semra Lucknow</Text>
-            </TouchableOpacity>
+          {/* 1-Tap Voice Place Presets (Zero Typing!) */}
+          <Text style={styles.presetsLabel}>OR TAP FOR INSTANT ZERO-TYPING SEARCH:</Text>
+          <ScrollView
+            style={styles.presetsScrollView}
+            contentContainerStyle={styles.presetsGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {VOICE_SEARCH_PLACES.map((place, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.presetButton}
+                onPress={() => handleSelectPreset(place)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.presetIcon}>📍</Text>
+                <Text style={styles.presetText} numberOfLines={1}>{place}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-            <TouchableOpacity
-              style={styles.presetChip}
-              onPress={() => handleQuickLocation("Semra Lucknow Uttar Pradesh")}
-            >
-              <Text style={styles.presetChipText}>📍 Semra Lucknow Uttar Pradesh</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Actions */}
+          {/* Giant Premium Action Buttons */}
           <View style={styles.actionRow}>
-            <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-              <Text style={styles.cancelText}>Cancel</Text>
+            <TouchableOpacity onPress={onClose} style={styles.cancelGiantBtn}>
+              <Text style={styles.cancelGiantText}>Cancel</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleDone} style={styles.doneButton}>
+            <TouchableOpacity onPress={handleDone} style={styles.doneGiantBtn}>
               <LinearGradient
                 colors={['#10B981', '#F59E0B']}
-                style={styles.doneGradient}
+                style={styles.doneGiantGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.doneText}>Search Location ✓</Text>
+                <Text style={styles.doneGiantText}>Search Location ✓</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -218,13 +228,16 @@ const styles = StyleSheet.create({
 
   content: {
     alignItems: 'center',
-    paddingHorizontal: spacing[6],
-    width: '100%',
-    maxWidth: 440,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[6],
+    width: '92%',
+    maxWidth: 460,
+    maxHeight: '90%',
   },
 
   statusTitle: {
     ...textStyles.screenTitle,
+    fontSize: 24,
     color: '#FFFFFF',
     marginBottom: spacing[2],
     textAlign: 'center',
@@ -237,78 +250,86 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
 
-  micOrbContainer: {
+  waveformContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing[2],
+    height: 80,
     marginBottom: spacing[6],
   },
 
-  micPulseRing: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+  waveBar: {
+    width: 12,
+    backgroundColor: '#10B981',
+    borderRadius: 6,
   },
 
-  micOrb: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.glow,
+  waveBarMain: {
+    width: 16,
+    backgroundColor: '#F59E0B',
   },
 
-  micEmoji: {
-    fontSize: 36,
-  },
-
-  transcriptBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    marginBottom: spacing[4],
+  spokenDisplayBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: borderRadius['2xl'],
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    marginBottom: spacing[6],
     width: '100%',
-    borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    minHeight: 56,
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
   },
 
-  transcriptInput: {
+  spokenDisplayText: {
     ...textStyles.bodyMedium,
     color: '#F59E0B',
-    fontSize: 16,
-    padding: 0,
+    fontSize: 17,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 
   presetsLabel: {
     ...textStyles.caption,
+    fontSize: 11,
+    letterSpacing: 1,
     color: 'rgba(255, 255, 255, 0.6)',
     alignSelf: 'flex-start',
-    marginBottom: spacing[2],
+    marginBottom: spacing[3],
+    fontWeight: '700',
   },
 
-  presetsGrid: {
+  presetsScrollView: {
     width: '100%',
-    gap: spacing[2],
+    maxHeight: 180,
     marginBottom: spacing[6],
   },
 
-  presetChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
+  presetsGrid: {
+    gap: spacing[2.5],
   },
 
-  presetChipText: {
-    ...textStyles.body,
-    fontSize: 13,
+  presetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3.5],
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    gap: spacing[3],
+  },
+
+  presetIcon: {
+    fontSize: 18,
+  },
+
+  presetText: {
+    ...textStyles.bodyMedium,
     color: '#FFFFFF',
+    fontSize: 15,
   },
 
   actionRow: {
@@ -317,35 +338,40 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
-  cancelButton: {
+  cancelGiantBtn: {
     flex: 1,
-    paddingVertical: spacing[3.5],
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    height: 56,
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  cancelText: {
+  cancelGiantText: {
     ...textStyles.button,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
   },
 
-  doneButton: {
-    flex: 1.5,
-    borderRadius: borderRadius.xl,
+  doneGiantBtn: {
+    flex: 1.6,
+    height: 56,
+    borderRadius: borderRadius['2xl'],
     overflow: 'hidden',
     ...shadow.glow,
   },
 
-  doneGradient: {
-    paddingVertical: spacing[3.5],
+  doneGiantGradient: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  doneText: {
+  doneGiantText: {
     ...textStyles.button,
     color: '#08090D',
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
 
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: '#10B981',
     borderRadius: borderRadius.full,
   },
 
@@ -554,8 +554,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     padding: spacing[6],
     width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
     marginBottom: spacing[5],
     ...shadow.glow,
   },
@@ -571,61 +571,60 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // ── Status ────────────────────────────────────────────────────────────────
-
   statusStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    backgroundColor: 'rgba(20, 184, 166, 0.1)',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
+    paddingVertical: spacing[2.5],
     borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(20, 184, 166, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
     marginBottom: spacing[4],
   },
 
   statusStripOffRoute: {
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-    borderColor: 'rgba(244, 63, 94, 0.25)',
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
   },
 
-  statusDot: { fontSize: 12 },
+  statusDot: { fontSize: 14 },
 
   statusText: {
     ...textStyles.label,
-    color: colors.successText,
+    color: '#10B981',
     textTransform: 'none',
-    fontSize: 13,
+    fontSize: 14,
     letterSpacing: 0,
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '700',
   },
 
-  statusTextOffRoute: { color: colors.errorText },
+  statusTextOffRoute: { color: '#F43F5E' },
 
-  // ── Next step (dev) ───────────────────────────────────────────────────────
+  // ── Next step ─────────────────────────────────────────────────────────────
 
   nextStepButton: {
-    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderRadius: borderRadius.xl,
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    paddingVertical: spacing[3],
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
     marginBottom: spacing[4],
   },
 
   nextStepText: {
     ...textStyles.caption,
-    color: colors.primaryLight,
-    fontFamily: 'Inter_500Medium',
+    color: '#F59E0B',
+    fontWeight: '700',
     textAlign: 'center',
+    fontSize: 14,
   },
 
   nextStepHint: {
     color: colors.dark.textTertiary,
-    fontFamily: 'Inter_400Regular',
+    fontWeight: '400',
   },
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -643,33 +642,33 @@ const styles = StyleSheet.create({
   },
 
   actionButton: {
-    backgroundColor: colors.dark.card,
-    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(32, 35, 51, 0.95)',
+    borderRadius: borderRadius['2xl'],
     paddingVertical: spacing[5],
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.dark.border,
-    ...shadow.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    ...shadow.glow,
   },
 
   actionButtonPrimary: {
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   },
 
   actionButtonDanger: {
-    backgroundColor: 'rgba(244, 63, 94, 0.1)',
-    borderColor: 'rgba(244, 63, 94, 0.3)',
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
   },
 
-  actionButtonEmoji: { fontSize: 28, marginBottom: spacing[2] },
+  actionButtonEmoji: { fontSize: 32, marginBottom: spacing[2] },
 
   actionButtonLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.dark.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
-  actionButtonLabelPrimary: { color: colors.primaryLight },
-  actionButtonLabelDanger: { color: colors.errorLight },
+  actionButtonLabelPrimary: { color: '#10B981' },
+  actionButtonLabelDanger: { color: '#F43F5E' },
 });
