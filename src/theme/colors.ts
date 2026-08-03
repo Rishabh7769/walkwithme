@@ -1,179 +1,120 @@
 /**
- * WalkWithMe — Central Color System
- *
- * Philosophy: Calming, warm, trustworthy. Never harsh or alarming.
- * The palette evokes the feeling of a gentle friend, not a robotic app.
- *
- * Primary: Soft indigo-violet (calm, trustworthy, modern)
- * Accent:  Warm amber (attention, warmth, encouragement)
- * Success: Soft teal-green (reassurance, "you're on track")
- * Error:   Soft rose (gentle alert, not panic)
+ * WalkWithMe — Modern Electric Glassmorphic Color Palette
  */
 
 export const palette = {
-  // Indigo — Primary brand color
-  indigo50: '#EEF2FF',
-  indigo100: '#E0E7FF',
-  indigo200: '#C7D2FE',
-  indigo300: '#A5B4FC',
-  indigo400: '#818CF8',
-  indigo500: '#6366F1',
-  indigo600: '#4F46E5',
-  indigo700: '#4338CA',
-  indigo800: '#3730A3',
-  indigo900: '#312E81',
-  indigo950: '#1E1B4B',
+  cyan400: '#38BDF8',
+  cyan500: '#00F2FE',
+  blue500: '#4FACFE',
+  blue600: '#2563EB',
 
-  // Violet — Secondary / AI messages
-  violet50: '#F5F3FF',
-  violet100: '#EDE9FE',
-  violet200: '#DDD6FE',
-  violet300: '#C4B5FD',
-  violet400: '#A78BFA',
-  violet500: '#8B5CF6',
-  violet600: '#7C3AED',
-  violet700: '#6D28D9',
-  violet800: '#5B21B6',
-  violet900: '#4C1D95',
-  violet950: '#2E1065',
+  purple500: '#8B5CF6',
+  purple600: '#7C3AED',
+  purple900: '#4C1D95',
+  purple950: '#1E1B4B',
 
-  // Amber — Warmth / encouragement
-  amber50: '#FFFBEB',
-  amber100: '#FEF3C7',
-  amber200: '#FDE68A',
-  amber300: '#FCD34D',
+  emerald400: '#34D399',
+  emerald500: '#10B981',
+  emerald600: '#059669',
+
   amber400: '#FBBF24',
   amber500: '#F59E0B',
-  amber600: '#D97706',
-
-  // Teal — Success / correct path
-  teal50: '#F0FDFA',
-  teal100: '#CCFBF1',
-  teal200: '#99F6E4',
-  teal400: '#2DD4BF',
-  teal500: '#14B8A6',
-  teal600: '#0D9488',
-
-  // Rose — Gentle error / wrong turn
-  rose50: '#FFF1F2',
-  rose100: '#FFE4E6',
   rose300: '#FDA4AF',
   rose500: '#F43F5E',
   rose600: '#E11D48',
 
-  // Neutrals — Dark mode first
-  neutral950: '#0A0A0F',
-  neutral900: '#111118',
-  neutral850: '#16161E',
-  neutral800: '#1C1C28',
-  neutral750: '#232330',
-  neutral700: '#2D2D3D',
-  neutral600: '#3D3D52',
-  neutral500: '#6B6B80',
-  neutral400: '#9898A8',
-  neutral300: '#C0C0CC',
-  neutral200: '#DDDDE6',
-  neutral100: '#EFEFF5',
-  neutral50: '#F8F8FC',
+  darkBg: '#0A0B10',
+  darkSurface: '#12131C',
+  darkCard: '#1A1C28',
+  darkCardHover: '#232536',
+  darkBorder: 'rgba(99, 102, 241, 0.25)',
+  darkBorderSubtle: 'rgba(255, 255, 255, 0.08)',
 
-  // Pure
+  textPrimary: '#FFFFFF',
+  textSecondary: '#C0C0CC',
+  textMuted: '#858599',
+
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
 } as const;
 
 export const colors = {
-  // ── Brand ─────────────────────────────────────────────
-  primary: palette.indigo500,
-  primaryLight: palette.indigo400,
-  primaryDark: palette.indigo700,
-  primarySubtle: palette.indigo100,
+  primary: palette.cyan500,
+  primaryLight: palette.cyan400,
+  primaryDark: palette.blue600,
 
-  secondary: palette.violet500,
-  secondaryLight: palette.violet400,
-  secondaryDark: palette.violet700,
-  secondarySubtle: palette.violet100,
+  secondary: palette.purple500,
+  secondaryLight: palette.purple500,
+  secondaryDark: palette.purple900,
 
   accent: palette.amber400,
-  accentLight: palette.amber300,
-  accentDark: palette.amber600,
 
-  // ── Semantic ───────────────────────────────────────────
-  success: palette.teal500,
-  successLight: palette.teal400,
-  successSubtle: palette.teal50,
-  successText: palette.teal600,
+  success: palette.emerald500,
+  successLight: palette.emerald400,
+  successText: palette.emerald400,
 
   error: palette.rose500,
   errorLight: palette.rose300,
-  errorSubtle: palette.rose50,
-  errorText: palette.rose600,
+  errorText: palette.rose500,
 
   warning: palette.amber500,
-  warningSubtle: palette.amber50,
 
-  // ── AI Message Colors ──────────────────────────────────
-  aiMessage: palette.violet50,
-  aiMessageBorder: palette.violet200,
-  aiMessageText: palette.violet900,
-
-  // ── Dark Mode Surfaces ─────────────────────────────────
   dark: {
-    background: palette.neutral950,
-    surface: palette.neutral900,
-    surfaceElevated: palette.neutral850,
-    card: palette.neutral800,
-    cardHover: palette.neutral750,
-    border: palette.neutral700,
-    borderSubtle: palette.neutral800,
-    divider: palette.neutral800,
+    background: palette.darkBg,
+    surface: palette.darkSurface,
+    surfaceElevated: palette.darkCard,
+    card: palette.darkCard,
+    cardHover: palette.darkCardHover,
+    border: palette.darkBorder,
+    borderSubtle: palette.darkBorderSubtle,
+    divider: palette.darkBorderSubtle,
 
-    text: palette.neutral50,
-    textSecondary: palette.neutral300,
-    textTertiary: palette.neutral500,
-    textDisabled: palette.neutral600,
-    textInverse: palette.neutral950,
+    text: palette.textPrimary,
+    textSecondary: palette.textSecondary,
+    textTertiary: palette.textMuted,
+    textDisabled: '#4A4A5A',
+    textInverse: palette.darkBg,
 
-    placeholder: palette.neutral600,
+    placeholder: 'rgba(192, 192, 204, 0.4)',
 
-    aiMessage: palette.neutral800,
-    aiMessageBorder: palette.indigo800,
-    aiMessageText: palette.indigo300,
+    aiMessage: palette.darkCard,
+    aiMessageBorder: palette.darkBorder,
+    aiMessageText: palette.cyan400,
   },
 
-  // ── Light Mode Surfaces ────────────────────────────────
   light: {
-    background: palette.neutral50,
-    surface: palette.white,
-    surfaceElevated: palette.white,
-    card: palette.white,
-    cardHover: palette.neutral100,
-    border: palette.neutral200,
-    borderSubtle: palette.neutral100,
-    divider: palette.neutral100,
+    background: palette.darkBg,
+    surface: palette.darkSurface,
+    surfaceElevated: palette.darkCard,
+    card: palette.darkCard,
+    cardHover: palette.darkCardHover,
+    border: palette.darkBorder,
+    borderSubtle: palette.darkBorderSubtle,
+    divider: palette.darkBorderSubtle,
 
-    text: palette.neutral950,
-    textSecondary: palette.neutral600,
-    textTertiary: palette.neutral400,
-    textDisabled: palette.neutral300,
-    textInverse: palette.white,
+    text: palette.textPrimary,
+    textSecondary: palette.textSecondary,
+    textTertiary: palette.textMuted,
+    textDisabled: '#4A4A5A',
+    textInverse: palette.darkBg,
 
-    placeholder: palette.neutral400,
+    placeholder: 'rgba(192, 192, 204, 0.4)',
 
-    aiMessage: palette.violet50,
-    aiMessageBorder: palette.violet200,
-    aiMessageText: palette.violet900,
+    aiMessage: palette.darkCard,
+    aiMessageBorder: palette.darkBorder,
+    aiMessageText: palette.cyan400,
   },
 
-  // ── Gradients (used as arrays for LinearGradient) ─────
   gradients: {
-    primary: [palette.indigo500, palette.violet600] as [string, string],
-    primarySubtle: [palette.indigo50, palette.violet50] as [string, string],
+    primary: [palette.cyan500, palette.blue500] as [string, string],
+    primarySubtle: ['rgba(0,242,254,0.15)', 'rgba(79,172,254,0.15)'] as [string, string],
+    purpleNeon: [palette.purple600, palette.cyan500] as [string, string],
     warmth: [palette.amber400, palette.rose500] as [string, string],
-    success: [palette.teal400, palette.indigo500] as [string, string],
-    darkBackground: [palette.neutral950, palette.neutral900] as [string, string],
-    splash: [palette.indigo950, palette.violet950] as [string, string],
-    card: [palette.neutral900, palette.neutral850] as [string, string],
+    success: [palette.emerald400, palette.cyan500] as [string, string],
+    darkBackground: [palette.darkBg, palette.darkSurface] as [string, string],
+    splash: [palette.purple950, palette.darkBg] as [string, string],
+    card: ['rgba(26,28,40,0.9)', 'rgba(18,19,28,0.9)'] as [string, string],
   },
 } as const;
 

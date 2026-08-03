@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { usePlaceAutocomplete } from '@/hooks';
-import { VoiceInputModal } from '@/features/chat';
+import { LocationVoiceSearchModal } from './LocationVoiceSearchModal';
 import type { PlacePrediction } from '@/types';
 
 interface PlacesAutocompleteInputProps {
@@ -149,10 +149,10 @@ export function PlacesAutocompleteInput({
       )}
 
       {/* Voice Search Listening Modal */}
-      <VoiceInputModal
+      <LocationVoiceSearchModal
         visible={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
-        onSendVoiceText={handleVoiceSearchResult}
+        onSelectLocation={handleVoiceSearchResult}
       />
     </View>
   );
