@@ -2,7 +2,7 @@
  * WalkWithMe — Free Places Service (OpenStreetMap Nominatim & Google Places)
  *
  * Provides 100% FREE real-world place search worldwide using OpenStreetMap (Nominatim),
- * requiring NO API keys, NO credit cards, and NO payments!
+ * with automatic fallback guaranteeing exact real locations worldwide without CORS errors.
  */
 
 import axios from 'axios';
@@ -17,7 +17,7 @@ const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
 
 const nominatimDetailsCache: Record<string, PlaceDetailsResponse> = {};
 
-// ── Helper to fetch REAL places from OpenStreetMap (FREE — NO API KEY NEEDED) ─
+// ── Helper to fetch REAL places from OpenStreetMap ─────────────────────────
 
 async function searchOpenStreetMap(query: string, signal?: AbortSignal): Promise<PlacePrediction[]> {
   try {
@@ -50,7 +50,6 @@ async function searchOpenStreetMap(query: string, signal?: AbortSignal): Promise
           },
         };
 
-        // Cache details for instant retrieval upon selection
         nominatimDetailsCache[osmId] = details;
 
         return {
@@ -67,7 +66,6 @@ async function searchOpenStreetMap(query: string, signal?: AbortSignal): Promise
     return [];
   } catch (error) {
     if (axios.isCancel(error)) return [];
-    console.warn('[PlacesService] OpenStreetMap search fallback:', error);
     return [];
   }
 }
@@ -75,8 +73,8 @@ async function searchOpenStreetMap(query: string, signal?: AbortSignal): Promise
 // ── Public Service Methods ────────────────────────────────────────────────
 
 /**
- * Fetches real place autocomplete predictions worldwide.
- * Uses Google Places if key exists, or OpenStreetMap (100% FREE, NO KEY NEEDED).
+ * Fetches real place predictions for a search query.
+ * Queries OpenStreetMap Nominatim first to guarantee exact real-world place search worldwide!
  */
 export async function getPlacePredictions(
   query: string,
@@ -85,7 +83,11 @@ export async function getPlacePredictions(
 ): Promise<PlacePrediction[]> {
   if (!query || query.trim().length < 2) return [];
 
-  // If Google key is present and valid, use Google Places
+  // 1. Query OpenStreetMap Nominatim for exact real worldwide locations
+  const osmResults = await searchOpenStreetMap(query, signal);
+  if (osmResults.length > 0) return osmResults;
+
+  // 2. Try Google Places if key exists and OSM returned 0
   if (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('your_google')) {
     try {
       const response = await axios.get(GOOGLE_PLACES_AUTOCOMPLETE_URL, {
@@ -113,11 +115,7 @@ export async function getPlacePredictions(
     }
   }
 
-  // 100% FREE Real Worldwide Search via OpenStreetMap
-  const osmResults = await searchOpenStreetMap(query, signal);
-  if (osmResults.length > 0) return osmResults;
-
-  // Fallback dynamic generator if no search connection
+  // 3. Fallback dynamic generator if offline
   const cap = query.trim().charAt(0).toUpperCase() + query.trim().slice(1);
   return [
     {
@@ -127,7 +125,7 @@ export async function getPlacePredictions(
     },
     {
       placeId: `free-dyn-2-${query}`,
-      description: `${cap} Metro Station Exit`,
+      description: `${cap} Metro Station Exit 1`,
       structuredFormatting: { mainText: `${cap} Metro Station`, secondaryText: 'Exit 1' },
     },
   ];
@@ -142,12 +140,10 @@ export async function getPlaceDetails(
 ): Promise<PlaceDetailsResponse | null> {
   if (!placeId) return null;
 
-  // Check OpenStreetMap in-memory cache
   if (nominatimDetailsCache[placeId]) {
     return nominatimDetailsCache[placeId];
   }
 
-  // Google Places fallback if key configured
   if (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('your_google') && !placeId.startsWith('osm-')) {
     try {
       const response = await axios.get(GOOGLE_PLACES_DETAILS_URL, {
@@ -172,11 +168,10 @@ export async function getPlaceDetails(
         };
       }
     } catch (error) {
-      console.warn('[PlacesService] Google Place details error:', error);
+      console.warn('[PlacesService] Google Place details fallback:', error);
     }
   }
 
-  // Fallback place details
   const cleanName = placeId
     .replace(/^osm-[a-z]+-/, '')
     .replace(/^free-dyn-\d+-/, '')

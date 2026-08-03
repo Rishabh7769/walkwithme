@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import { useUserStore } from '@/store/useUserStore';
+import { useChatStore } from '@/store/useChatStore';
 import { useAppNavigation, useBackHandler, useSpeech, useLiveLocation } from '@/hooks';
 import { CameraViewModal } from '@/features/camera';
 import { toWalkingTime, translateInstruction } from '@/utils';
@@ -269,13 +270,32 @@ export default function CompanionScreen() {
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
+  const { addUserMessage, addAIMessage } = useChatStore();
+
   const handleTalk = () => openChat();
 
   const handleCamera = () => {
     setIsCameraOpen(true);
   };
 
-  const handleConfused = () => openChat();
+  const handleConfused = () => {
+    const userMsgText = profile.languagePreference === 'hi'
+      ? "मैं भ्रमित हूँ, कृपया मेरी मदद करें!"
+      : profile.languagePreference === 'hinglish'
+      ? "Main confuse hoon, please help me!"
+      : "I am confused right now, can you guide me?";
+
+    const aiRespText = profile.languagePreference === 'hi'
+      ? "कोई बात नहीं! 😊 मैं आपके साथ हूँ। सामने सिग्नल या मुख्य रास्ता देखें।"
+      : profile.languagePreference === 'hinglish'
+      ? "Koi baat nahi! 😊 Main aapke saath hoon. Samne main road dekho."
+      : "Koi baat nahi 😊 I'm right here with you! Look straight ahead for the main road.";
+
+    addUserMessage(userMsgText);
+    addAIMessage(aiRespText, 'reassuring');
+    speak(aiRespText);
+    openChat();
+  };
 
   const handleEndTrip = () => {
     Alert.alert(
