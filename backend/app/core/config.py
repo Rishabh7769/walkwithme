@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     # OpenAI API Key
     OPENAI_API_KEY: str = ""
+
+    # Google Maps API Key (used server-side for Places proxy)
+    GOOGLE_MAPS_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
 
     # CORS Origins

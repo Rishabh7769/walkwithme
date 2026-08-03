@@ -23,6 +23,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import { useAppNavigation } from '@/hooks';
 import { getPlaceDetails, getWalkingDirections } from '@/services/maps';
+import { getCurrentCoordinates } from '@/services/location';
 import { PlacesAutocompleteInput, EditFavoriteModal } from '@/features/home';
 import type { FavoritePlace, PlacePrediction, PlaceResult } from '@/types';
 
@@ -138,18 +139,22 @@ export default function HomeScreen() {
       placeId: prediction.placeId,
       name: details?.name ?? prediction.structuredFormatting.mainText,
       address: details?.formattedAddress ?? prediction.description,
-      coordinates: details?.coordinates ?? { latitude: 26.8467, longitude: 80.9462 },
+      coordinates: details?.coordinates ?? { latitude: 0, longitude: 0 },
     };
 
-    const dummyOrigin: PlaceResult = {
+    // Get real GPS coordinates for the origin
+    const gpsCoords = await getCurrentCoordinates();
+    const originCoords = gpsCoords ?? { latitude: destination.coordinates.latitude, longitude: destination.coordinates.longitude };
+
+    const origin: PlaceResult = {
       placeId: 'current-loc',
       name: 'Current Location',
-      address: 'Current Location',
-      coordinates: { latitude: 26.8467, longitude: 80.9462 },
+      address: 'Your current location',
+      coordinates: originCoords,
     };
 
     const trip = await getWalkingDirections({
-      origin: dummyOrigin,
+      origin,
       destination,
       language: profile.languagePreference,
     });
@@ -169,18 +174,21 @@ export default function HomeScreen() {
       placeId: favorite.placeId,
       name: favorite.label,
       address: favorite.address,
-      coordinates: details?.coordinates ?? { latitude: 26.8467, longitude: 80.9462 },
+      coordinates: details?.coordinates ?? { latitude: 0, longitude: 0 },
     };
 
-    const dummyOrigin: PlaceResult = {
+    const gpsCoords = await getCurrentCoordinates();
+    const originCoords = gpsCoords ?? destination.coordinates;
+
+    const origin: PlaceResult = {
       placeId: 'current-loc',
       name: 'Current Location',
-      address: 'Current Location',
-      coordinates: { latitude: 26.8467, longitude: 80.9462 },
+      address: 'Your current location',
+      coordinates: originCoords,
     };
 
     const trip = await getWalkingDirections({
-      origin: dummyOrigin,
+      origin,
       destination,
       language: profile.languagePreference,
     });

@@ -1,8 +1,10 @@
 /**
- * WalkWithMe — Places Autocomplete Input Component (Gold & Emerald Glass Theme - NO BLUE)
+ * WalkWithMe — Places Autocomplete Input
  *
- * Renders a luxury dark glassmorphic search bar with live autocomplete prediction list
- * and a 🎤 Voice Search button for hands-free Indian location queries.
+ * Renders a search bar with:
+ * - Real-time place predictions (triggers on first character)
+ * - 🎤 Voice search button
+ * - Dropdown with proper zIndex so it overlays content below
  */
 
 import { useState, useRef } from 'react';
@@ -33,7 +35,7 @@ export function PlacesAutocompleteInput({
   query,
   onQueryChange,
   onSelectPrediction,
-  placeholder = 'Search places in India (e.g. Semra Lucknow)...',
+  placeholder = 'Search any place (city, landmark, address)...',
 }: PlacesAutocompleteInputProps) {
   const { data: predictions = [], isLoading } = usePlaceAutocomplete(query);
   const inputBorderAnim = useRef(new Animated.Value(0)).current;
@@ -42,7 +44,7 @@ export function PlacesAutocompleteInput({
   const handleFocus = () => {
     Animated.timing(inputBorderAnim, {
       toValue: 1,
-      duration: 200,
+      duration: 180,
       useNativeDriver: false,
     }).start();
   };
@@ -50,68 +52,65 @@ export function PlacesAutocompleteInput({
   const handleBlur = () => {
     Animated.timing(inputBorderAnim, {
       toValue: 0,
-      duration: 200,
+      duration: 180,
       useNativeDriver: false,
     }).start();
   };
 
-  const handleVoiceSearchResult = async (transcription: string) => {
-    const cleanStr = transcription.trim();
-    if (!cleanStr) return;
-
-    onQueryChange(cleanStr);
+  const handleVoiceResult = async (transcription: string) => {
+    const text = transcription.trim();
+    if (!text) return;
+    onQueryChange(text);
     setIsVoiceModalOpen(false);
 
-    try {
-      const results = await getPlacePredictions(cleanStr);
-      if (results.length > 0) {
-        onSelectPrediction(results[0]!);
-      }
-    } catch (e) {
-      console.warn('[PlacesInput] Auto voice navigation error:', e);
+    // Auto-navigate on voice selection: fetch top prediction and fire
+    const results = await getPlacePredictions(text);
+    if (results.length > 0) {
+      onSelectPrediction(results[0]!);
     }
   };
 
   const borderColor = inputBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(245, 158, 11, 0.3)', '#10B981'],
+    outputRange: ['rgba(245,158,11,0.3)', '#10B981'],
   });
 
-  const showDropdown = query.trim().length >= 1 || predictions.length > 0 || isLoading;
+  // Show dropdown when there is a query AND there are results (or it's loading)
+  const showDropdown = query.trim().length >= 1 && (predictions.length > 0 || isLoading);
 
   return (
-    <View style={styles.container}>
-      {/* Search Input Box */}
-      <Animated.View style={[styles.searchWrapper, { borderColor }]}>
+    <View style={styles.root}>
+      {/* Input Row */}
+      <Animated.View style={[styles.inputRow, { borderColor }]}>
         <Text style={styles.searchIcon}>🔍</Text>
+
         <TextInput
-          style={styles.searchInput}
+          style={styles.input}
           placeholder={placeholder}
-          placeholderTextColor="rgba(194, 197, 220, 0.4)"
+          placeholderTextColor="rgba(200,202,220,0.38)"
           value={query}
           onChangeText={onQueryChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
           returnKeyType="search"
-          accessibilityLabel="Search for an Indian place or address"
+          autoCorrect={false}
+          accessibilityLabel="Search places"
         />
 
-        {/* Clear Button */}
-        {query.length > 0 ? (
+        {query.length > 0 && (
           <TouchableOpacity
             onPress={() => onQueryChange('')}
-            style={styles.clearButton}
-            accessibilityLabel="Clear search input"
+            style={styles.clearBtn}
+            accessibilityLabel="Clear search"
           >
             <Text style={styles.clearIcon}>✕</Text>
           </TouchableOpacity>
-        ) : null}
+        )}
 
-        {/* Voice Search Microphone Button */}
         <TouchableOpacity
           onPress={() => setIsVoiceModalOpen(true)}
-          style={styles.voiceSearchBtn}
-          accessibilityLabel="Voice search location"
+          style={styles.voiceBtn}
+          accessibilityLabel="Voice search"
         >
           <Text style={styles.voiceIcon}>🎤</Text>
         </TouchableOpacity>
@@ -121,90 +120,62 @@ export function PlacesAutocompleteInput({
         ) : null}
       </Animated.View>
 
-      {/* Persistent Prediction Dropdown List */}
+      {/* Dropdown */}
       {showDropdown && (
         <View style={styles.dropdown}>
           {isLoading && predictions.length === 0 ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.loadingText}>Searching places in India...</Text>
+              <Text style={styles.loadingText}>Searching...</Text>
             </View>
-          ) : predictions.length > 0 ? (
-            predictions.map((prediction, index) => (
+          ) : (
+            predictions.map((p, idx) => (
               <TouchableOpacity
-                key={prediction.placeId}
-                style={[
-                  styles.predictionItem,
-                  index < predictions.length - 1 && styles.predictionItemBorder,
-                ]}
-                onPress={() => onSelectPrediction(prediction)}
+                key={p.placeId}
+                style={[styles.predRow, idx < predictions.length - 1 && styles.predRowBorder]}
+                onPress={() => {
+                  onQueryChange(p.structuredFormatting.mainText);
+                  onSelectPrediction(p);
+                }}
                 accessibilityRole="button"
-                accessibilityLabel={`Select ${prediction.structuredFormatting.mainText}`}
+                accessibilityLabel={`Navigate to ${p.structuredFormatting.mainText}`}
               >
-                <View style={styles.pinWrapper}>
+                <View style={styles.pinBadge}>
                   <Text style={styles.pinIcon}>📍</Text>
                 </View>
-
-                <View style={styles.predictionTextWrapper}>
-                  <Text style={styles.mainText} numberOfLines={1}>
-                    {prediction.structuredFormatting.mainText}
+                <View style={styles.predText}>
+                  <Text style={styles.predMain} numberOfLines={1}>
+                    {p.structuredFormatting.mainText}
                   </Text>
-                  {Boolean(prediction.structuredFormatting.secondaryText) && (
-                    <Text style={styles.secondaryText} numberOfLines={1}>
-                      {prediction.structuredFormatting.secondaryText}
+                  {p.structuredFormatting.secondaryText ? (
+                    <Text style={styles.predSub} numberOfLines={1}>
+                      {p.structuredFormatting.secondaryText}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
               </TouchableOpacity>
             ))
-          ) : (
-            <TouchableOpacity
-              style={styles.predictionItem}
-              onPress={() =>
-                onSelectPrediction({
-                  placeId: `custom-${query}`,
-                  description: `${query}, Lucknow, Uttar Pradesh, India`,
-                  structuredFormatting: {
-                    mainText: query,
-                    secondaryText: 'Lucknow, Uttar Pradesh, India',
-                  },
-                })
-              }
-            >
-              <View style={styles.pinWrapper}>
-                <Text style={styles.pinIcon}>📍</Text>
-              </View>
-              <View style={styles.predictionTextWrapper}>
-                <Text style={styles.mainText} numberOfLines={1}>
-                  {query}
-                </Text>
-                <Text style={styles.secondaryText} numberOfLines={1}>
-                  Lucknow, Uttar Pradesh, India
-                </Text>
-              </View>
-            </TouchableOpacity>
           )}
         </View>
       )}
 
-      {/* Voice Search Listening Modal */}
       <LocationVoiceSearchModal
         visible={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
-        onSelectLocation={handleVoiceSearchResult}
+        onSelectLocation={handleVoiceResult}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     width: '100%',
-    zIndex: 999,
+    zIndex: 100,
     marginBottom: spacing[4],
   },
 
-  searchWrapper: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1A1C28',
@@ -216,11 +187,11 @@ const styles = StyleSheet.create({
   },
 
   searchIcon: {
-    fontSize: 18,
+    fontSize: 17,
     marginRight: spacing[2],
   },
 
-  searchInput: {
+  input: {
     flex: 1,
     ...textStyles.body,
     color: '#FFFFFF',
@@ -228,46 +199,52 @@ const styles = StyleSheet.create({
     padding: 0,
   },
 
-  clearButton: {
-    padding: spacing[1],
-    marginRight: spacing[2],
+  clearBtn: {
+    padding: spacing[1.5],
+    marginRight: spacing[1],
   },
 
   clearIcon: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.dark.textTertiary,
   },
 
-  voiceSearchBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(16, 185, 129, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  voiceBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(16,185,129,0.2)',
     borderWidth: 1.5,
     borderColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   voiceIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
 
   loader: {
     marginLeft: spacing[2],
   },
 
-  // ── Dropdown ──────────────────────────────────────────────────────────────
+  // ── Dropdown ────────────────────────────────────────────────────────────
 
   dropdown: {
-    backgroundColor: '#1E202E',
+    backgroundColor: '#1E2030',
     borderRadius: borderRadius['2xl'],
     borderWidth: 2,
     borderColor: '#F59E0B',
     marginTop: spacing[2],
     overflow: 'hidden',
     zIndex: 9999,
-    ...shadow.glow,
+    // Android elevation
+    elevation: 20,
+    // iOS shadow
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
 
   loadingRow: {
@@ -282,48 +259,47 @@ const styles = StyleSheet.create({
     color: colors.dark.textSecondary,
   },
 
-  predictionItem: {
+  predRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[4],
+    paddingVertical: spacing[3.5],
     gap: spacing[3],
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
 
-  predictionItemBorder: {
+  predRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
 
-  pinWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  pinBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(245,158,11,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   pinIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
 
-  predictionTextWrapper: {
+  predText: {
     flex: 1,
   },
 
-  mainText: {
+  predMain: {
     ...textStyles.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
-  secondaryText: {
+  predSub: {
     ...textStyles.caption,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 2,
-    fontSize: 13,
+    fontSize: 12,
   },
 });
