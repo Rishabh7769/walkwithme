@@ -1,10 +1,11 @@
 /**
  * WalkWithMe — Places Autocomplete Input Component
  *
- * Renders an animated search bar with a live prediction dropdown list.
+ * Renders a glassmorphic search bar with live autocomplete prediction list
+ * and a 🎤 Voice Search button for hands-free location queries in India.
  */
 
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +18,7 @@ import {
 } from 'react-native';
 import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { usePlaceAutocomplete } from '@/hooks';
+import { VoiceInputModal } from '@/features/chat';
 import type { PlacePrediction } from '@/types';
 
 interface PlacesAutocompleteInputProps {
@@ -30,10 +32,11 @@ export function PlacesAutocompleteInput({
   query,
   onQueryChange,
   onSelectPrediction,
-  placeholder = 'Search for a place...',
+  placeholder = 'Search places in India (e.g. Semra Lucknow)...',
 }: PlacesAutocompleteInputProps) {
   const { data: predictions = [], isLoading } = usePlaceAutocomplete(query);
   const inputBorderAnim = useRef(new Animated.Value(0)).current;
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   const handleFocus = () => {
     Animated.timing(inputBorderAnim, {
@@ -51,9 +54,14 @@ export function PlacesAutocompleteInput({
     }).start();
   };
 
+  const handleVoiceSearchResult = (transcription: string) => {
+    onQueryChange(transcription);
+    setIsVoiceModalOpen(false);
+  };
+
   const borderColor = inputBorderAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.dark.border, colors.primary],
+    outputRange: ['rgba(99, 102, 241, 0.25)', '#6366F1'],
   });
 
   const showDropdown = query.trim().length >= 2 && (predictions.length > 0 || isLoading);
@@ -66,17 +74,17 @@ export function PlacesAutocompleteInput({
         <TextInput
           style={styles.searchInput}
           placeholder={placeholder}
-          placeholderTextColor={colors.dark.placeholder}
+          placeholderTextColor="rgba(192, 192, 204, 0.5)"
           value={query}
           onChangeText={onQueryChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
           returnKeyType="search"
-          accessibilityLabel="Search for a place or address"
+          accessibilityLabel="Search for an Indian place or address"
         />
-        {isLoading ? (
-          <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
-        ) : query.length > 0 ? (
+
+        {/* Clear Button */}
+        {query.length > 0 ? (
           <TouchableOpacity
             onPress={() => onQueryChange('')}
             style={styles.clearButton}
@@ -84,6 +92,19 @@ export function PlacesAutocompleteInput({
           >
             <Text style={styles.clearIcon}>✕</Text>
           </TouchableOpacity>
+        ) : null}
+
+        {/* Voice Search Microphone Button */}
+        <TouchableOpacity
+          onPress={() => setIsVoiceModalOpen(true)}
+          style={styles.voiceSearchBtn}
+          accessibilityLabel="Voice search location"
+        >
+          <Text style={styles.voiceIcon}>🎤</Text>
+        </TouchableOpacity>
+
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
         ) : null}
       </Animated.View>
 
@@ -93,7 +114,7 @@ export function PlacesAutocompleteInput({
           {isLoading && predictions.length === 0 ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.loadingText}>Searching places...</Text>
+              <Text style={styles.loadingText}>Searching places in India...</Text>
             </View>
           ) : (
             predictions.map((prediction, index) => (
@@ -107,7 +128,10 @@ export function PlacesAutocompleteInput({
                 accessibilityRole="button"
                 accessibilityLabel={`Select ${prediction.structuredFormatting.mainText}`}
               >
-                <Text style={styles.pinIcon}>📍</Text>
+                <View style={styles.pinWrapper}>
+                  <Text style={styles.pinIcon}>📍</Text>
+                </View>
+
                 <View style={styles.predictionTextWrapper}>
                   <Text style={styles.mainText} numberOfLines={1}>
                     {prediction.structuredFormatting.mainText}
@@ -123,6 +147,13 @@ export function PlacesAutocompleteInput({
           )}
         </View>
       )}
+
+      {/* Voice Search Listening Modal */}
+      <VoiceInputModal
+        visible={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        onSendVoiceText={handleVoiceSearchResult}
+      />
     </View>
   );
 }
@@ -137,17 +168,17 @@ const styles = StyleSheet.create({
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.dark.card,
-    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(28, 28, 40, 0.85)',
+    borderRadius: borderRadius['2xl'],
     borderWidth: 1.5,
     paddingHorizontal: spacing[4],
-    paddingVertical: Platform.OS === 'ios' ? spacing[4] : spacing[2],
-    ...shadow.md,
+    paddingVertical: Platform.OS === 'ios' ? spacing[3.5] : spacing[2],
+    ...shadow.glow,
   },
 
   searchIcon: {
     fontSize: 18,
-    marginRight: spacing[3],
+    marginRight: spacing[2],
   },
 
   searchInput: {
@@ -159,11 +190,27 @@ const styles = StyleSheet.create({
 
   clearButton: {
     padding: spacing[1],
+    marginRight: spacing[2],
   },
 
   clearIcon: {
     fontSize: 14,
     color: colors.dark.textTertiary,
+  },
+
+  voiceSearchBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+  },
+
+  voiceIcon: {
+    fontSize: 16,
   },
 
   loader: {
@@ -173,13 +220,13 @@ const styles = StyleSheet.create({
   // ── Dropdown ──────────────────────────────────────────────────────────────
 
   dropdown: {
-    backgroundColor: colors.dark.card,
-    borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(28, 28, 40, 0.95)',
+    borderRadius: borderRadius['2xl'],
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
     marginTop: spacing[2],
     overflow: 'hidden',
-    ...shadow.lg,
+    ...shadow.glow,
   },
 
   loadingRow: {
@@ -204,11 +251,20 @@ const styles = StyleSheet.create({
 
   predictionItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.dark.borderSubtle,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+
+  pinWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   pinIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
 
   predictionTextWrapper: {
@@ -218,6 +274,7 @@ const styles = StyleSheet.create({
   mainText: {
     ...textStyles.bodyMedium,
     color: colors.dark.text,
+    fontSize: 15,
   },
 
   secondaryText: {
