@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { usePlaceAutocomplete } from '@/hooks';
+import { getPlacePredictions } from '@/services/maps';
 import { LocationVoiceSearchModal } from './LocationVoiceSearchModal';
 import type { PlacePrediction } from '@/types';
 
@@ -32,7 +33,7 @@ export function PlacesAutocompleteInput({
   query,
   onQueryChange,
   onSelectPrediction,
-  placeholder = 'Search places in India (e.g. Sunder Village Semra)...',
+  placeholder = 'Search places in India (e.g. Semra Lucknow)...',
 }: PlacesAutocompleteInputProps) {
   const { data: predictions = [], isLoading } = usePlaceAutocomplete(query);
   const inputBorderAnim = useRef(new Animated.Value(0)).current;
@@ -54,11 +55,22 @@ export function PlacesAutocompleteInput({
     }).start();
   };
 
-  const handleVoiceSearchResult = (transcription: string) => {
-    if (transcription.trim()) {
-      onQueryChange(transcription.trim());
-    }
+  const handleVoiceSearchResult = async (transcription: string) => {
+    const cleanStr = transcription.trim();
+    if (!cleanStr) return;
+
+    onQueryChange(cleanStr);
     setIsVoiceModalOpen(false);
+
+    // Auto-fetch prediction and launch direct navigation (Google Maps Voice Search behavior)
+    try {
+      const results = await getPlacePredictions(cleanStr);
+      if (results.length > 0) {
+        onSelectPrediction(results[0]!);
+      }
+    } catch (e) {
+      console.warn('[PlacesInput] Auto voice navigation error:', e);
+    }
   };
 
   const borderColor = inputBorderAnim.interpolate({
