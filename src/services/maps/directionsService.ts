@@ -121,7 +121,7 @@ export async function getWalkingDirections({
     ? origin.coordinates
     : 'latitude' in origin
     ? (origin as Coordinates)
-    : { latitude: 28.6139, longitude: 77.2090 };
+    : destination.coordinates ?? { latitude: 26.8467, longitude: 80.9462 };
 
   // If Google Maps key is configured, try Google Directions
   if (GOOGLE_MAPS_KEY && !GOOGLE_MAPS_KEY.includes('your_google')) {
