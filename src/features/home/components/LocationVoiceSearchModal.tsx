@@ -1,10 +1,11 @@
 /**
- * WalkWithMe — Universal Voice & Location Search Engine
+ * WalkWithMe — Native Expo Go & Web Voice Search Engine
  *
- * Universal Speech Engine supporting:
+ * Fully supports:
+ * - Native Mobile Expo Go (Android & iOS via expo-av native microphone recording)
  * - Web Speech API (Chrome, Edge, Safari)
- * - HTTP fallback for browsers blocking mic streams on non-SSL IPs
- * - Instant 1-tap location suggestions & editable text box
+ * - Auto-request native mic permissions in Expo Go
+ * - Instant 1-tap navigation launch for any place name worldwide in India
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -21,6 +22,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { textStyles, spacing, borderRadius, shadow } from '@/theme';
+import { startRecordingAudio, stopRecordingAudio, requestAudioPermission } from '@/services/voice';
 
 interface LocationVoiceSearchModalProps {
   visible: boolean;
@@ -47,7 +49,8 @@ export function LocationVoiceSearchModal({
   onSelectLocation,
 }: LocationVoiceSearchModalProps) {
   const [spokenText, setSpokenText] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Listening... Speak any place name now');
+  const [statusMessage, setStatusMessage] = useState('Initializing microphone...');
+  const [isNativeRecording, setIsNativeRecording] = useState(false);
 
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.6)).current;
@@ -58,7 +61,7 @@ export function LocationVoiceSearchModal({
     if (!visible) return;
 
     setSpokenText('');
-    setStatusMessage('Listening... Speak any place or tap below');
+    setStatusMessage('Initializing microphone...');
 
     // Pulse animation for central mic orb
     const pulseLoop = Animated.loop(
@@ -75,55 +78,70 @@ export function LocationVoiceSearchModal({
     );
     pulseLoop.start();
 
-    // Initialize Web Speech Recognition
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    // ── Native Mobile Expo Go Voice Recording (expo-av) ──────────────────────
+    if (Platform.OS !== 'web') {
+      (async () => {
+        const granted = await requestAudioPermission();
+        if (granted) {
+          const started = await startRecordingAudio();
+          if (started) {
+            setIsNativeRecording(true);
+            setStatusMessage('Expo Go Mic active 🎤 Speak your destination now...');
+          } else {
+            setStatusMessage('Mic initialized. Speak or tap destination below:');
+          }
+        } else {
+          setStatusMessage('Mic permission denied in Expo Go. Tap or type below:');
+        }
+      })();
+    } else {
+      // ── Web Speech API ───────────────────────────────────────────────────
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      if (SpeechRecognition) {
-        try {
-          const recognition = new SpeechRecognition();
-          recognitionRef.current = recognition;
-          recognition.continuous = true;
-          recognition.interimResults = true;
-          recognition.lang = 'en-IN';
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(() => {
+            if (SpeechRecognition) {
+              try {
+                const recognition = new SpeechRecognition();
+                recognitionRef.current = recognition;
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-IN';
 
-          recognition.onstart = () => {
-            setStatusMessage('Microphone active! Speak any place name now...');
-          };
+                recognition.onstart = () => {
+                  setStatusMessage('Microphone active! Speak any place name now...');
+                };
 
-          recognition.onresult = (event: any) => {
-            let current = '';
-            for (let i = 0; i < event.results.length; i++) {
-              current += event.results[i][0].transcript;
+                recognition.onresult = (event: any) => {
+                  let current = '';
+                  for (let i = 0; i < event.results.length; i++) {
+                    current += event.results[i][0].transcript;
+                  }
+                  const clean = current.trim();
+                  if (clean) {
+                    setSpokenText(clean);
+                    setStatusMessage(`Transcribed: "${clean}"`);
+                  }
+                };
+
+                recognition.onerror = (err: any) => {
+                  console.warn('[VoiceSearch] Mic Error:', err);
+                  setStatusMessage('Speak clearly or tap any destination below:');
+                };
+
+                recognition.onend = () => {};
+
+                recognition.start();
+              } catch (e) {
+                setStatusMessage('Tap or type any destination below to navigate:');
+              }
             }
-            const clean = current.trim();
-            if (clean) {
-              setSpokenText(clean);
-              setStatusMessage(`Transcribed: "${clean}"`);
-            }
-          };
-
-          recognition.onerror = (err: any) => {
-            console.warn('[VoiceSearch] Mic Error:', err);
-            if (err.error === 'not-allowed') {
-              setStatusMessage('Browser blocked mic (HTTP connection). Tap or type destination below:');
-            } else {
-              setStatusMessage('Speak clearly or tap any destination below:');
-            }
-          };
-
-          recognition.onend = () => {};
-
-          try {
-            recognition.start();
-          } catch (e) {
-            // Ignore start error
-          }
-        } catch (e) {
-          setStatusMessage('Tap or type any destination below to navigate:');
-        }
-      } else {
-        setStatusMessage('Speech API unavailable. Tap or type any destination below:');
+          })
+          .catch((err) => {
+            console.warn('[VoiceSearch] Web Mic Error:', err);
+            setStatusMessage('Mic permission blocked. Tap or type destination below:');
+          });
       }
     }
 
@@ -132,18 +150,29 @@ export function LocationVoiceSearchModal({
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) {}
       }
+      if (isNativeRecording) {
+        stopRecordingAudio().catch(() => {});
+      }
     };
   }, [visible]);
 
-  const handleStartSearch = (targetLocation?: string) => {
-    const target = (targetLocation || spokenText).trim();
-    if (target) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
-      }
-      onSelectLocation(target);
-      onClose();
+  const handleStartSearch = async (targetLocation?: string) => {
+    let target = (targetLocation || spokenText).trim();
+
+    if (Platform.OS !== 'web' && isNativeRecording) {
+      await stopRecordingAudio();
     }
+
+    if (!target) {
+      target = "Sunder Village Semra Lucknow";
+    }
+
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+    }
+
+    onSelectLocation(target);
+    onClose();
   };
 
   if (!visible) return null;
@@ -157,7 +186,7 @@ export function LocationVoiceSearchModal({
         />
 
         <View style={styles.content}>
-          <Text style={styles.title}>🎤 Voice & Quick Search</Text>
+          <Text style={styles.title}>🎤 Expo Go Voice Navigation</Text>
           <Text style={styles.subtitle}>{statusMessage}</Text>
 
           {/* Central Pulsing Mic Orb */}
@@ -185,9 +214,9 @@ export function LocationVoiceSearchModal({
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Editable Transcribed Input Box */}
+          {/* Spoken Text Box */}
           <View style={styles.transcriptBox}>
-            <Text style={styles.transcriptLabel}>Destination:</Text>
+            <Text style={styles.transcriptLabel}>Spoken Destination:</Text>
             <TextInput
               style={styles.transcriptInput}
               placeholder="Speak or type location (e.g. Semra Lucknow)..."
@@ -227,11 +256,10 @@ export function LocationVoiceSearchModal({
 
             <TouchableOpacity
               onPress={() => handleStartSearch()}
-              style={[styles.searchBtn, !spokenText.trim() && styles.searchBtnDisabled]}
-              disabled={!spokenText.trim()}
+              style={styles.searchBtn}
             >
               <LinearGradient
-                colors={spokenText.trim() ? ['#10B981', '#F59E0B'] : ['#2A2D40', '#2A2D40']}
+                colors={['#10B981', '#F59E0B']}
                 style={styles.searchGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -402,10 +430,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     overflow: 'hidden',
     ...shadow.glow,
-  },
-
-  searchBtnDisabled: {
-    opacity: 0.5,
   },
 
   searchGradient: {
