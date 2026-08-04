@@ -1,10 +1,13 @@
 /**
- * WalkWithMe — Home Screen (Luxury Emerald & Gold Redesign)
+ * WalkWithMe — Home Screen (Lovable Ultra-Premium Design)
  *
- * Features:
- * - Real-time India Places Autocomplete search bar with 🎤 Voice Search
- * - Luxury Glassmorphic Favorite Place cards with giant touch targets
- * - Instant Navigation start with clear distance & duration estimates
+ * Ultra-glassmorphic header with:
+ * - "Good Afternoon" & "Ready when you are" greeting
+ * - Pulsing "High Accuracy GPS" pill
+ * - Floating Places Autocomplete search input with voice button & real-time predictions dropdown
+ * - Quick Favourites pill grid
+ * - Recent Walks horizontal carousel
+ * - Primary CTA "Start walking with me" button
  */
 
 import { useState } from 'react';
@@ -18,7 +21,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
+import { textStyles, spacing, borderRadius } from '@/theme';
 import { useUserStore } from '@/store/useUserStore';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import { useAppNavigation } from '@/hooks';
@@ -28,110 +31,22 @@ import { PlacesAutocompleteInput, EditFavoriteModal } from '@/features/home';
 import type { FavoritePlace, PlacePrediction, PlaceResult } from '@/types';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing[4] * 2 - spacing[3]) / 2;
 
-// ── Active Trip Banner ────────────────────────────────────────────────────
-
-interface ActiveTripBannerProps {
-  destinationName: string;
-  onResume: () => void;
-  onEnd: () => void;
-}
-
-function ActiveTripBanner({ destinationName, onResume, onEnd }: ActiveTripBannerProps) {
-  return (
-    <View style={styles.activeBanner}>
-      <LinearGradient
-        colors={['rgba(16, 185, 129, 0.25)', 'rgba(245, 158, 11, 0.15)']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      <View style={styles.activeBannerContent}>
-        <View style={styles.activeBannerEmojiWrapper}>
-          <Text style={styles.activeBannerEmoji}>🚶‍♀️</Text>
-        </View>
-        <View style={styles.activeBannerText}>
-          <Text style={styles.activeBannerTitle}>Active Walking Trip</Text>
-          <Text style={styles.activeBannerSubtitle} numberOfLines={1}>
-            → {destinationName}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.activeBannerActions}>
-        <TouchableOpacity onPress={onResume} style={styles.resumeButton}>
-          <LinearGradient
-            colors={['#10B981', '#059669']}
-            style={styles.resumeButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={styles.resumeButtonText}>Resume</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onEnd} style={styles.endBannerButton}>
-          <Text style={styles.endBannerButtonText}>End</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// ── Favorite Place Card ───────────────────────────────────────────────────
-
-interface FavoriteCardProps {
-  favorite: FavoritePlace;
-  onPress: (favorite: FavoritePlace) => void;
-  onLongPress: (favorite: FavoritePlace) => void;
-}
-
-function FavoriteCard({ favorite, onPress, onLongPress }: FavoriteCardProps) {
-  const hasAddress = favorite.address.length > 0;
-
-  return (
-    <TouchableOpacity
-      onPress={() => onPress(favorite)}
-      onLongPress={() => onLongPress(favorite)}
-      style={[styles.favoriteCard, !hasAddress && styles.favoriteCardEmpty]}
-      accessibilityRole="button"
-      accessibilityLabel={`Favorite ${favorite.label}${hasAddress ? `: ${favorite.address}` : ', tap to set address'}`}
-      activeOpacity={0.8}
-    >
-      <LinearGradient
-        colors={
-          hasAddress
-            ? ['rgba(32, 35, 51, 0.95)', 'rgba(24, 26, 38, 0.95)']
-            : ['rgba(255, 255, 255, 0.03)', 'rgba(255, 255, 255, 0.02)']
-        }
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      <View style={styles.favoriteEmojiWrapper}>
-        <Text style={styles.favoriteEmoji}>{favorite.emoji}</Text>
-      </View>
-      <Text style={styles.favoriteLabel} numberOfLines={1}>{favorite.label}</Text>
-      {hasAddress ? (
-        <Text style={styles.favoriteAddress} numberOfLines={2}>{favorite.address}</Text>
-      ) : (
-        <Text style={styles.favoriteAddPlaceholder}>+ Tap to set</Text>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-// ── Home Screen ───────────────────────────────────────────────────────────
+// Recent walks mock data matching Lovable UI design
+const RECENT_WALKS = [
+  { id: '1', name: 'Metro Station', meta: '1.1 km • 14 min', icon: '🚶‍♂️' },
+  { id: '2', name: 'Night Pharmacy', meta: '600 m • 8 min', icon: '💊' },
+  { id: '3', name: 'Riverside Loop', meta: '2.4 km • 30 min', icon: '🌳' },
+];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { favorites, profile } = useUserStore();
   const { activeTrip, setActiveTrip, reset } = useNavigationStore();
-  const { startTrip } = useAppNavigation();
+  const { startTrip, openSettings } = useAppNavigation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingFavorite, setEditingFavorite] = useState<FavoritePlace | null>(null);
-
-  const hasTripActive = activeTrip?.status === 'active' || activeTrip?.status === 'rerouting';
 
   const handleSelectPrediction = async (prediction: PlacePrediction) => {
     const details = await getPlaceDetails(prediction.placeId);
@@ -142,7 +57,7 @@ export default function HomeScreen() {
       coordinates: details?.coordinates ?? { latitude: 0, longitude: 0 },
     };
 
-    // Get real GPS coordinates for the origin
+    // Get real GPS coordinates for origin
     const gpsCoords = await getCurrentCoordinates();
     const originCoords = gpsCoords ?? { latitude: destination.coordinates.latitude, longitude: destination.coordinates.longitude };
 
@@ -197,285 +112,426 @@ export default function HomeScreen() {
     startTrip(destination);
   };
 
-  const handleFavoriteLongPress = (favorite: FavoritePlace) => {
-    setEditingFavorite(favorite);
-  };
-
   return (
-    <View style={styles.screen}>
+    <View style={[styles.root, { paddingTop: insets.top + spacing[3] }]}>
+      {/* Mesh Background Ambient Glows */}
+      <View style={styles.meshGlowTop} />
+      <View style={styles.meshGlowRight} />
+
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: Math.max(insets.top + spacing[3], spacing[6]),
-            paddingBottom: Math.max(insets.bottom + spacing[6], spacing[8]),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 90 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Luxury Hero Banner */}
-        <View style={styles.heroBanner}>
-          <LinearGradient
-            colors={['rgba(16, 185, 129, 0.15)', 'rgba(245, 158, 11, 0.1)']}
-            style={styles.heroGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.greetingText}>
-              {profile.languagePreference === 'hi' ? 'नमस्ते 🙏' : profile.languagePreference === 'hinglish' ? 'Namaste 🙏' : 'Welcome back 👋'}
-            </Text>
-            <Text style={styles.heroTitle}>Where are you walking to?</Text>
-            <Text style={styles.heroSubtitle}>
-              Search any place in India or tap 🎤 Voice Search to walk with AI guidance
-            </Text>
-          </LinearGradient>
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <View style={styles.header}>
+          <View style={styles.headerTextCol}>
+            <Text style={styles.greetingText}>GOOD AFTERNOON</Text>
+            <Text style={styles.headerTitle}>Ready when you are</Text>
+            
+            {/* GPS Pill Badge */}
+            <View style={styles.gpsPill}>
+              <View style={styles.gpsPulseDot} />
+              <Text style={styles.gpsPillText}>High Accuracy GPS Active</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.settingsBtn} onPress={openSettings} activeOpacity={0.8}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Active Trip Resume Banner */}
-        {hasTripActive && activeTrip && (
-          <ActiveTripBanner
-            destinationName={activeTrip.destination.name}
-            onResume={() => startTrip(activeTrip.destination)}
-            onEnd={reset}
-          />
+        {/* ── Active Trip Banner (if any) ─────────────────────────────────── */}
+        {activeTrip && activeTrip.status === 'active' && (
+          <View style={styles.activeBanner}>
+            <LinearGradient
+              colors={['rgba(16, 185, 129, 0.25)', 'rgba(245, 158, 11, 0.15)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <View style={styles.activeBannerContent}>
+              <Text style={styles.activeBannerEmoji}>🚶‍♀️</Text>
+              <View style={styles.activeBannerText}>
+                <Text style={styles.activeBannerTitle}>Active Walking Trip</Text>
+                <Text style={styles.activeBannerSubtitle} numberOfLines={1}>
+                  → {activeTrip.destination.name}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activeBannerActions}>
+              <TouchableOpacity
+                onPress={() => startTrip(activeTrip.destination)}
+                style={styles.resumeBtn}
+              >
+                <Text style={styles.resumeBtnText}>Resume</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => reset()} style={styles.endBtn}>
+                <Text style={styles.endBtnText}>End</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
-        {/* Places Search Bar with 🎤 Voice Search */}
-        <PlacesAutocompleteInput
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          onSelectPrediction={handleSelectPrediction}
-          placeholder="Search places in India (e.g. Sunder Village Semra)..."
-        />
+        {/* ── Search Input ────────────────────────────────────────────────── */}
+        <View style={styles.searchSection}>
+          <PlacesAutocompleteInput
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSelectPrediction={handleSelectPrediction}
+            placeholder="Where are we walking today?"
+          />
+        </View>
 
-        {/* Favorites Grid */}
+        {/* ── Quick Favourites ────────────────────────────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Saved Places</Text>
-          <Text style={styles.sectionSubtitle}>Tap to walk • Hold to edit</Text>
+          <Text style={styles.sectionTitle}>QUICK FAVOURITES</Text>
         </View>
 
         <View style={styles.favoritesGrid}>
-          {favorites.map((fav) => (
-            <FavoriteCard
-              key={fav.id}
-              favorite={fav}
-              onPress={handleFavoritePress}
-              onLongPress={handleFavoriteLongPress}
-            />
+          {favorites.map((favorite) => (
+            <TouchableOpacity
+              key={favorite.id}
+              style={styles.favoritePill}
+              onPress={() => handleFavoritePress(favorite)}
+              onLongPress={() => setEditingFavorite(favorite)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.favoritePillEmoji}>{favorite.emoji}</Text>
+              <Text style={styles.favoritePillLabel} numberOfLines={1}>
+                {favorite.label}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
+
+        {/* ── Recent Walks Carousel ────────────────────────────────────────── */}
+        <View style={[styles.sectionHeader, { marginTop: spacing[6] }]}>
+          <Text style={styles.sectionTitle}>RECENT WALKS</Text>
+          <Text style={styles.sectionSubtext}>Last 7 days</Text>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselContainer}>
+          {RECENT_WALKS.map((item) => (
+            <View key={item.id} style={styles.recentCard}>
+              <View style={styles.recentIconBadge}>
+                <Text style={styles.recentIcon}>{item.icon}</Text>
+              </View>
+              <Text style={styles.recentCardTitle} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.recentCardMeta}>{item.meta}</Text>
+              <TouchableOpacity
+                style={styles.walkAgainBtn}
+                onPress={() => setSearchQuery(item.name)}
+              >
+                <Text style={styles.walkAgainText}>Walk again →</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* ── CTA Button ───────────────────────────────────────────────────── */}
+        <TouchableOpacity
+          style={styles.startWalkBtn}
+          onPress={() => {
+            if (favorites.length > 0) handleFavoritePress(favorites[0]!);
+          }}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            style={styles.startWalkGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={styles.startWalkText}>Start walking with me</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <Text style={styles.ctaSubtitle}>Your companion stays with you the whole way.</Text>
       </ScrollView>
 
       {/* Edit Favorite Modal */}
-      {editingFavorite && (
-        <EditFavoriteModal
-          visible={Boolean(editingFavorite)}
-          favorite={editingFavorite}
-          onClose={() => setEditingFavorite(null)}
-        />
-      )}
+      <EditFavoriteModal
+        favorite={editingFavorite}
+        visible={editingFavorite !== null}
+        onClose={() => setEditingFavorite(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
-    backgroundColor: colors.dark.background,
+    backgroundColor: '#0B0D14',
   },
-
+  meshGlowTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 240,
+    backgroundColor: 'rgba(16, 185, 129, 0.07)',
+    borderRadius: 120,
+  },
+  meshGlowRight: {
+    position: 'absolute',
+    top: 100,
+    right: -40,
+    width: 200,
+    height: 200,
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+    borderRadius: 100,
+  },
   scrollContent: {
-    paddingHorizontal: spacing[4],
+    paddingHorizontal: spacing[5],
   },
 
-  heroBanner: {
+  // ── Header ───────────────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: spacing[5],
-    borderRadius: borderRadius['2xl'],
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    ...shadow.glow,
   },
-
-  heroGradient: {
-    padding: spacing[5],
+  headerTextCol: {
+    flex: 1,
   },
-
   greetingText: {
     ...textStyles.caption,
-    fontSize: 14,
-    color: '#F59E0B',
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 11,
+    letterSpacing: 2.2,
     fontWeight: '700',
-    marginBottom: spacing[1],
   },
-
-  heroTitle: {
-    ...textStyles.screenTitle,
-    fontSize: 26,
+  headerTitle: {
+    ...textStyles.heroHeading,
     color: '#FFFFFF',
-    marginBottom: spacing[2],
+    fontSize: 26,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  gpsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 25, 38, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1.5],
+    alignSelf: 'flex-start',
+    marginTop: spacing[2.5],
+    gap: spacing[2],
+  },
+  gpsPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  gpsPillText: {
+    ...textStyles.caption,
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontSize: 11,
+  },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(22, 25, 38, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsIcon: {
+    fontSize: 18,
   },
 
-  heroSubtitle: {
-    ...textStyles.body,
-    color: colors.dark.textSecondary,
-    lineHeight: 22,
-  },
-
-  // Active Trip Banner
+  // ── Active Banner ────────────────────────────────────────────────────────
   activeBanner: {
     borderRadius: borderRadius['2xl'],
-    marginBottom: spacing[5],
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
     padding: spacing[4],
+    marginBottom: spacing[5],
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#10B981',
-    ...shadow.glow,
   },
-
   activeBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
-    marginBottom: spacing[3],
   },
-
-  activeBannerEmojiWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  activeBannerEmoji: {
+    fontSize: 22,
   },
-
-  activeBannerEmoji: { fontSize: 24 },
-
-  activeBannerText: { flex: 1 },
-
+  activeBannerText: {
+    flex: 1,
+  },
   activeBannerTitle: {
     ...textStyles.bodyMedium,
     color: '#10B981',
     fontWeight: '700',
+    fontSize: 14,
   },
-
   activeBannerSubtitle: {
-    ...textStyles.body,
+    ...textStyles.caption,
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontSize: 13,
   },
-
   activeBannerActions: {
     flexDirection: 'row',
     gap: spacing[2],
+    marginTop: spacing[3],
   },
-
-  resumeButton: {
-    flex: 2,
-    height: 46,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
+  resumeBtn: {
+    backgroundColor: '#10B981',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
   },
-
-  resumeButtonGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  resumeButtonText: {
-    ...textStyles.button,
+  resumeBtnText: {
+    ...textStyles.caption,
     color: '#FFFFFF',
     fontWeight: '700',
   },
-
-  endBannerButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(244, 63, 94, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 63, 94, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  endBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+  },
+  endBtnText: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '700',
   },
 
-  endBannerButtonText: {
-    ...textStyles.button,
-    color: '#F43F5E',
+  searchSection: {
+    zIndex: 100,
   },
 
-  // Section Headers
+  // ── Favourites ───────────────────────────────────────────────────────────
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing[4],
-    marginBottom: spacing[4],
+    justifyContent: 'space-between',
+    marginBottom: spacing[3],
   },
-
   sectionTitle: {
-    ...textStyles.sectionHeader,
-    fontSize: 20,
-    color: '#FFFFFF',
-  },
-
-  sectionSubtitle: {
     ...textStyles.caption,
-    color: colors.dark.textSecondary,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 11,
+    letterSpacing: 2,
+    fontWeight: '700',
   },
-
-  // Favorites Grid
+  sectionSubtext: {
+    ...textStyles.caption,
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 11,
+  },
   favoritesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: spacing[2.5],
+  },
+  favoritePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 25, 38, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2.5],
+    width: (width - spacing[5] * 2 - spacing[2.5]) / 2,
+    gap: spacing[2.5],
+  },
+  favoritePillEmoji: {
+    fontSize: 16,
+  },
+  favoritePillLabel: {
+    ...textStyles.bodyMedium,
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+
+  // ── Recent Walks ─────────────────────────────────────────────────────────
+  carouselContainer: {
     gap: spacing[3],
+    paddingRight: spacing[5],
   },
-
-  favoriteCard: {
-    width: CARD_WIDTH,
-    height: 125,
-    padding: spacing[4],
+  recentCard: {
+    width: 170,
+    backgroundColor: 'rgba(22, 25, 38, 0.7)',
     borderRadius: borderRadius['2xl'],
-    borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    ...shadow.glow,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: spacing[3.5],
   },
-
-  favoriteCardEmpty: {
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-
-  favoriteEmojiWrapper: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  recentIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recentIcon: {
+    fontSize: 16,
+  },
+  recentCardTitle: {
+    ...textStyles.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+    marginTop: spacing[2.5],
+  },
+  recentCardMeta: {
+    ...textStyles.caption,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  walkAgainBtn: {
+    marginTop: spacing[3],
+  },
+  walkAgainText: {
+    ...textStyles.caption,
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 
-  favoriteEmoji: { fontSize: 20 },
-
-  favoriteLabel: {
+  // ── CTA Button ────────────────────────────────────────────────────────────
+  startWalkBtn: {
+    marginTop: spacing[8],
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  startWalkGradient: {
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startWalkText: {
     ...textStyles.bodyMedium,
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
   },
-
-  favoriteAddress: {
+  ctaSubtitle: {
     ...textStyles.caption,
-    color: colors.dark.textSecondary,
-    fontSize: 12,
-  },
-
-  favoriteAddPlaceholder: {
-    ...textStyles.caption,
-    color: '#F59E0B',
-    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing[2],
   },
 });
