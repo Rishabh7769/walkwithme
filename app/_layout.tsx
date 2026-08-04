@@ -2,7 +2,7 @@
  * WalkWithMe — Root Layout
  *
  * Sets up:
- * - Inter font loading (with safe fallback rendering)
+ * - Inter font loading (with guaranteed non-blocking fallback)
  * - React Query provider
  * - Global navigation structure (Expo Router)
  * - Safe area provider
@@ -55,9 +55,16 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    // Guaranteed non-blocking splash screen hide (max 500ms wait)
+    const timeout = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 500);
+
     if (fontsLoaded) {
       SplashScreen.hideAsync().catch(() => {});
     }
+
+    return () => clearTimeout(timeout);
   }, [fontsLoaded]);
 
   return (

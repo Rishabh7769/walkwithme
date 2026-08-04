@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, textStyles, spacing } from '@/theme';
@@ -21,17 +21,17 @@ export default function SplashEntry() {
   const dotScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // 1. Guaranteed redirection timer to Home screen
+    // 1. Redirection timer to Home screen (800ms for crisp entrance)
     const redirectTimer = setTimeout(() => {
       router.replace('/(app)/home');
-    }, 1800);
+    }, 800);
 
     // 2. Entrance animations
     Animated.sequence([
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
-          duration: 600,
+          duration: 400,
           useNativeDriver: false,
         }),
         Animated.spring(logoScale, {
@@ -43,7 +43,7 @@ export default function SplashEntry() {
       ]),
       Animated.timing(taglineOpacity, {
         toValue: 1,
-        duration: 500,
+        duration: 300,
         useNativeDriver: false,
       }),
     ]).start();
@@ -68,42 +68,48 @@ export default function SplashEntry() {
   }, [logoOpacity, logoScale, taglineOpacity, dotScale]);
 
   return (
-    <LinearGradient
-      colors={colors.gradients.splash}
-      style={styles.container}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={() => router.replace('/(app)/home')}
+      style={{ flex: 1 }}
     >
-      {/* Background ambient circles */}
-      <View style={styles.ambientTop} />
-      <View style={styles.ambientBottom} />
-
-      {/* Logo area */}
-      <Animated.View
-        style={[
-          styles.logoContainer,
-          {
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-          },
-        ]}
+      <LinearGradient
+        colors={colors.gradients.splash}
+        style={styles.container}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
       >
-        {/* Icon */}
+        {/* Background ambient circles */}
+        <View style={styles.ambientTop} />
+        <View style={styles.ambientBottom} />
+
+        {/* Logo area */}
         <Animated.View
-          style={[styles.iconWrapper, { transform: [{ scale: dotScale }] }]}
+          style={[
+            styles.logoContainer,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
         >
-          <Text style={styles.iconEmoji}>🚶‍♀️</Text>
+          {/* Icon */}
+          <Animated.View
+            style={[styles.iconWrapper, { transform: [{ scale: dotScale }] }]}
+          >
+            <Text style={styles.iconEmoji}>🚶‍♀️</Text>
+          </Animated.View>
+
+          {/* App name */}
+          <Text style={styles.appName}>{APP_NAME}</Text>
         </Animated.View>
 
-        {/* App name */}
-        <Text style={styles.appName}>{APP_NAME}</Text>
-      </Animated.View>
-
-      {/* Tagline */}
-      <Animated.View style={{ opacity: taglineOpacity }}>
-        <Text style={styles.tagline}>{APP_TAGLINE}</Text>
-      </Animated.View>
-    </LinearGradient>
+        {/* Tagline */}
+        <Animated.View style={{ opacity: taglineOpacity }}>
+          <Text style={styles.tagline}>{APP_TAGLINE}</Text>
+        </Animated.View>
+      </LinearGradient>
+    </TouchableOpacity>
   );
 }
 
