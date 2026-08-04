@@ -1,11 +1,11 @@
 /**
- * WalkWithMe — Chat Screen with AI Companion
+ * WalkWithMe — Chat Screen (Lovable Ultra-Premium AI Companion UI)
  *
- * Features:
- * - Prominent text input bar with quick prompt chips
- * - Full hands-free voice input via microphone
- * - Real-time spoken voice response output
- * - Multi-lingual support (English, Hindi, Hinglish)
+ * Full multi-lingual AI companion conversation interface with:
+ * - Sparkles companion header with active walk context pill
+ * - Glowing emerald AI message bubbles & dark obsidian user bubbles
+ * - Built-in hands-free Voice Input modal (🎤) & live TTS speech playback
+ * - Quick prompt chips (English, Hindi, Hinglish)
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -19,20 +19,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, textStyles, spacing, borderRadius, shadow } from '@/theme';
+import { textStyles, spacing, borderRadius, shadow } from '@/theme';
 import { useChatStore } from '@/store/useChatStore';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import { useUserStore } from '@/store/useUserStore';
-import { useAppNavigation, useBackHandler, useAIChat } from '@/hooks';
+import { useAppNavigation, useBackHandler, useAIChat, useSpeech } from '@/hooks';
 import { VoiceInputModal } from '@/features/chat';
 import type { ChatMessage } from '@/types';
 
-// ── Quick Prompt Chips Pool ────────────────────────────────────────────────
-
+// Quick Prompts
 const QUICK_PROMPTS_EN = [
   "Am I going the right way?",
   "Where am I right now?",
@@ -54,155 +51,65 @@ const QUICK_PROMPTS_HINGLISH = [
   "Destination kitni door hai?",
 ];
 
-// ── Message Bubble ─────────────────────────────────────────────────────────
-
-interface MessageBubbleProps {
-  message: ChatMessage;
-}
-
-function MessageBubble({ message }: MessageBubbleProps) {
+// Message Bubble
+function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(10)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 10, useNativeDriver: true }),
-    ]).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
   }, []);
 
-  const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
   return (
-    <Animated.View
-      style={[
-        styles.bubbleRow,
-        isUser ? styles.bubbleRowUser : styles.bubbleRowAI,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
+    <Animated.View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowAI, { opacity: fadeAnim }]}>
       {!isUser && (
-        <View style={styles.aiAvatar}>
-          <Text style={styles.aiAvatarEmoji}>🤖</Text>
+        <View style={styles.aiBadge}>
+          <Text style={styles.aiBadgeEmoji}>✨</Text>
         </View>
       )}
-
-      <View
-        style={[
-          styles.bubble,
-          isUser ? styles.bubbleUser : styles.bubbleAI,
-        ]}
-      >
+      <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAI]}>
         <Text style={[styles.bubbleText, isUser ? styles.bubbleTextUser : styles.bubbleTextAI]}>
           {message.content}
-        </Text>
-
-        <Text style={[styles.bubbleTime, isUser ? styles.bubbleTimeUser : styles.bubbleTimeAI]}>
-          {formattedTime}
         </Text>
       </View>
     </Animated.View>
   );
 }
 
-// ── Typing Indicator ───────────────────────────────────────────────────────
-
+// Typing Indicator
 function TypingIndicator() {
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
+  const dot = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    const animateDot = (dot: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(dot, { toValue: -6, duration: 300, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.delay(600 - delay),
-        ]),
-      );
-
-    const a1 = animateDot(dot1, 0);
-    const a2 = animateDot(dot2, 150);
-    const a3 = animateDot(dot3, 300);
-
-    a1.start(); a2.start(); a3.start();
-
-    return () => {
-      a1.stop(); a2.stop(); a3.stop();
-    };
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(dot, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(dot, { toValue: 0.3, duration: 500, useNativeDriver: true }),
+      ]),
+    ).start();
   }, []);
 
   return (
-    <View style={styles.typingContainer}>
-      <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot1 }] }]} />
-      <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot2 }] }]} />
-      <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot3 }] }]} />
-    </View>
-  );
-}
-
-// ── Welcome Empty State ────────────────────────────────────────────────────
-
-function WelcomeState({ onSelectPrompt, language }: { onSelectPrompt: (p: string) => void; language: string }) {
-  let prompts = QUICK_PROMPTS_EN;
-  let title = "How can I help you walk today?";
-  let subtitle = "Ask anything about your route, landmarks around you, or just talk to stay calm while walking.";
-
-  if (language === 'hi') {
-    prompts = QUICK_PROMPTS_HI;
-    title = "मैं आपकी कैसे मदद कर सकता हूँ?";
-    subtitle = "अपने रास्ते, आसपास की जगहों के बारे में पूछें, या चलते समय शांत महसूस करने के लिए बात करें।";
-  } else if (language === 'hinglish') {
-    prompts = QUICK_PROMPTS_HINGLISH;
-    title = "Main aapki kaise help karoon?";
-    subtitle = "Apne raste, landmarks ke bare mein poochho, ya walking ke dauran relax feel karne ke liye baat karo.";
-  }
-
-  return (
-    <View style={styles.welcomeContainer}>
-      <LinearGradient
-        colors={['rgba(99, 102, 241, 0.15)', 'rgba(139, 92, 246, 0.05)']}
-        style={styles.welcomeCard}
-      >
-        <Text style={styles.welcomeEmoji}>🚶‍♀️🤖</Text>
-        <Text style={styles.welcomeTitle}>{title}</Text>
-        <Text style={styles.welcomeSubtitle}>{subtitle}</Text>
-      </LinearGradient>
-
-      <Text style={styles.promptsHeader}>Tap to ask instantly:</Text>
-      <View style={styles.promptsGrid}>
-        {prompts.map((prompt, idx) => (
-          <TouchableOpacity
-            key={idx}
-            style={styles.promptChip}
-            onPress={() => onSelectPrompt(prompt)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.promptChipText}>💡 {prompt}</Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.typingRow}>
+      <View style={styles.aiBadge}>
+        <Text style={styles.aiBadgeEmoji}>✨</Text>
+      </View>
+      <View style={styles.typingBubble}>
+        <Animated.View style={[styles.dot, { opacity: dot }]} />
+        <Animated.View style={[styles.dot, { opacity: dot }]} />
+        <Animated.View style={[styles.dot, { opacity: dot }]} />
       </View>
     </View>
   );
 }
-
-// ── Main Chat Screen ───────────────────────────────────────────────────────
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { messages, isAIThinking, addUserMessage } = useChatStore();
   const { activeTrip, getCurrentStep, getRemainingSteps } = useNavigationStore();
   const { profile } = useUserStore();
-  const { backToCompanion, goHome } = useAppNavigation();
+  const { backToCompanion } = useAppNavigation();
+  const { speak } = useSpeech();
   const aiChatMutation = useAIChat();
 
   const [inputText, setInputText] = useState('');
@@ -221,9 +128,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages.length]);
 
@@ -231,531 +136,321 @@ export default function ChatScreen() {
     const cleanText = text.trim();
     if (!cleanText) return;
 
+    setInputText('');
     const userMsg = addUserMessage(cleanText);
     const updatedMessages = [...messages, userMsg];
 
     const currentStep = getCurrentStep();
     const remainingSteps = getRemainingSteps();
 
-    aiChatMutation.mutate({
-      messages: updatedMessages,
-      context: {
-        currentInstruction: currentStep?.humanInstruction,
-        destinationName: activeTrip?.destination.name,
-        remainingSteps,
-        isOnRoute: activeTrip?.isOnRoute ?? true,
+    aiChatMutation.mutate(
+      {
+        messages: updatedMessages,
+        context: {
+          currentInstruction: currentStep?.humanInstruction,
+          destinationName: activeTrip?.destination.name,
+          remainingSteps,
+          isOnRoute: activeTrip?.isOnRoute ?? true,
+        },
       },
-    });
+      {
+        onSuccess: (response) => {
+          if (response.message) {
+            speak(response.message);
+          }
+        },
+      },
+    );
   };
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
-    const text = inputText;
-    setInputText('');
-    sendTextToAI(text);
+  const getPrompts = () => {
+    if (profile.languagePreference === 'hi') return QUICK_PROMPTS_HI;
+    if (profile.languagePreference === 'hinglish') return QUICK_PROMPTS_HINGLISH;
+    return QUICK_PROMPTS_EN;
   };
-
-  const handleVoiceInput = () => {
-    setIsVoiceModalOpen(true);
-  };
-
-  const handleSendVoiceText = (transcription: string) => {
-    sendTextToAI(transcription);
-  };
-
-  const handleBackPress = () => {
-    if (activeTrip?.status === 'active') {
-      backToCompanion();
-    } else {
-      goHome();
-    }
-  };
-
-  const activePrompts = profile.languagePreference === 'hi'
-    ? QUICK_PROMPTS_HI
-    : profile.languagePreference === 'hinglish'
-    ? QUICK_PROMPTS_HINGLISH
-    : QUICK_PROMPTS_EN;
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing[4]) }]}>
-        <TouchableOpacity
-          onPress={handleBackPress}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-
-        <View style={styles.aiInfo}>
-          <View style={styles.aiIconWrapper}>
-            <Text style={styles.aiIcon}>🤖</Text>
-          </View>
-
-          <View>
-            <Text style={styles.aiName}>WalkWithMe AI</Text>
-            <View style={styles.onlineIndicator}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Always listening & guiding</Text>
-            </View>
-          </View>
+      <View style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.sparkleIcon}>✨</Text>
+          <Text style={styles.headerTitle}>Ask your companion</Text>
         </View>
+        <Text style={styles.headerSubtitle}>
+          {activeTrip ? `Active trip → ${activeTrip.destination.name}` : 'Always walking right beside you'}
+        </Text>
       </View>
 
-      {/* Message List */}
+      {/* Messages List */}
       <FlatList
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <MessageBubble message={item} />}
-        contentContainerStyle={[
-          styles.messageList,
-          messages.length === 0 && styles.messageListEmpty,
-        ]}
+        contentContainerStyle={styles.listContent}
+        ListFooterComponent={isAIThinking ? <TypingIndicator /> : null}
         ListEmptyComponent={
-          <WelcomeState
-            onSelectPrompt={(p) => sendTextToAI(p)}
-            language={profile.languagePreference}
-          />
-        }
-        ListFooterComponent={
-          isAIThinking ? (
-            <View style={[styles.bubbleRow, styles.bubbleRowAI]}>
-              <View style={styles.aiAvatar}>
-                <Text style={styles.aiAvatarEmoji}>🤖</Text>
-              </View>
-              <View style={[styles.bubble, styles.bubbleAI]}>
-                <TypingIndicator />
-              </View>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>How can I help you walk today?</Text>
+            <Text style={styles.emptySubtitle}>
+              Ask anything about your route, landmarks around you, or just talk to stay calm.
+            </Text>
+            <View style={styles.promptsGrid}>
+              {getPrompts().map((p, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.promptPill}
+                  onPress={() => sendTextToAI(p)}
+                >
+                  <Text style={styles.promptText}>💡 {p}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          ) : null
+          </View>
         }
-        showsVerticalScrollIndicator={false}
       />
 
-      {/* Horizontal Suggestions Bar */}
-      {messages.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScrollView}
-          contentContainerStyle={styles.chipsScrollContent}
-        >
-          {activePrompts.map((p, i) => (
-            <TouchableOpacity
-              key={i}
-              style={styles.miniChip}
-              onPress={() => sendTextToAI(p)}
-            >
-              <Text style={styles.miniChipText}>💡 {p}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Prominent Input Bar */}
-      <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom + spacing[2], spacing[4]) }]}>
+      {/* Input Bar */}
+      <View style={[styles.inputContainer, { paddingBottom: insets.bottom + spacing[3] }]}>
         <View style={styles.inputRow}>
-          {/* TextInput */}
           <TextInput
             style={styles.textInput}
-            placeholder={profile.languagePreference === 'hi' ? "संदेश टाइप करें..." : profile.languagePreference === 'hinglish' ? "Message type karein..." : "Type a message..."}
-            placeholderTextColor={colors.dark.placeholder}
+            placeholder="Type quietly or ask a question..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
             value={inputText}
             onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            accessibilityLabel="Type your message to the AI companion"
+            onSubmitEditing={() => sendTextToAI(inputText)}
             returnKeyType="send"
-            onSubmitEditing={handleSend}
           />
 
-          {/* Voice Microphone Button */}
+          {/* Voice Input Button */}
           <TouchableOpacity
-            onPress={handleVoiceInput}
-            style={styles.voiceButton}
-            accessibilityLabel="Voice microphone input"
+            style={styles.voiceIconBtn}
+            onPress={() => setIsVoiceModalOpen(true)}
+            accessibilityLabel="Voice chat"
           >
-            <LinearGradient
-              colors={['#4F46E5', '#7C3AED']}
-              style={styles.voiceGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.voiceEmoji}>🎤</Text>
-            </LinearGradient>
+            <Text style={styles.voiceEmoji}>🎤</Text>
           </TouchableOpacity>
 
           {/* Send Button */}
           <TouchableOpacity
-            onPress={handleSend}
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-            disabled={!inputText.trim()}
-            accessibilityLabel="Send text message"
+            style={styles.sendIconBtn}
+            onPress={() => sendTextToAI(inputText)}
+            accessibilityLabel="Send message"
           >
-            <LinearGradient
-              colors={inputText.trim() ? colors.gradients.primary : ['#2D2D3D', '#2D2D3D']}
-              style={styles.sendButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.sendIcon}>➤</Text>
-            </LinearGradient>
+            <Text style={styles.sendEmoji}>➔</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Hands-free Voice Input Modal */}
+      {/* Voice Chat Modal */}
       <VoiceInputModal
         visible={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
-        onSendVoiceText={handleSendVoiceText}
+        onSendVoiceText={(voiceText) => sendTextToAI(voiceText)}
       />
     </KeyboardAvoidingView>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
-    backgroundColor: colors.dark.background,
+    backgroundColor: '#0B0D14',
   },
-
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[4],
+    paddingHorizontal: spacing[5],
     paddingBottom: spacing[3],
+    backgroundColor: 'rgba(22, 25, 38, 0.8)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.dark.border,
-    gap: spacing[3],
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.dark.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.dark.border,
-  },
-
-  backIcon: {
-    fontSize: 18,
-    color: colors.dark.text,
-  },
-
-  aiInfo: {
+  headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[3],
-    flex: 1,
-  },
-
-  aiIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
-  },
-
-  aiIcon: { fontSize: 22 },
-
-  aiName: {
-    ...textStyles.bodyMedium,
-    color: colors.dark.text,
-  },
-
-  onlineIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    marginTop: 2,
-  },
-
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
-  },
-
-  onlineText: {
-    ...textStyles.caption,
-    color: colors.dark.textSecondary,
-  },
-
-  // ── Messages ─────────────────────────────────────────────────────────────
-
-  messageList: {
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[4],
-    paddingBottom: spacing[4],
-  },
-
-  messageListEmpty: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-
-  bubbleRow: {
-    flexDirection: 'row',
-    marginBottom: spacing[3],
-    alignItems: 'flex-end',
     gap: spacing[2],
   },
-
+  sparkleIcon: {
+    fontSize: 18,
+  },
+  headerTitle: {
+    ...textStyles.screenTitle,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    ...textStyles.caption,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  listContent: {
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    gap: spacing[3],
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: spacing[2.5],
+    gap: spacing[2],
+  },
   bubbleRowUser: {
     justifyContent: 'flex-end',
   },
-
   bubbleRowAI: {
     justifyContent: 'flex-start',
   },
-
-  aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+  aiBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
-
-  aiAvatarEmoji: { fontSize: 16 },
-
+  aiBadgeEmoji: {
+    fontSize: 14,
+  },
   bubble: {
-    maxWidth: '78%',
+    maxWidth: '82%',
+    borderRadius: borderRadius['2xl'],
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    borderRadius: borderRadius['2xl'],
   },
-
   bubbleUser: {
-    backgroundColor: colors.primary,
-    borderBottomRightRadius: borderRadius.sm,
-  },
-
-  bubbleAI: {
-    backgroundColor: colors.dark.card,
-    borderBottomLeftRadius: borderRadius.sm,
+    backgroundColor: 'rgba(32, 35, 51, 0.95)',
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-
+  bubbleAI: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    ...shadow.md,
+  },
   bubbleText: {
     ...textStyles.body,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
-
   bubbleTextUser: {
     color: '#FFFFFF',
   },
-
   bubbleTextAI: {
-    color: colors.dark.text,
+    color: '#FFFFFF',
   },
-
-  bubbleTime: {
-    ...textStyles.caption,
-    fontSize: 10,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-
-  bubbleTimeUser: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-
-  bubbleTimeAI: {
-    color: colors.dark.textSecondary,
-  },
-
-  typingContainer: {
+  typingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-
-  typingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.primaryLight,
-  },
-
-  // ── Empty State ──────────────────────────────────────────────────────────
-
-  welcomeContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing[4],
-  },
-
-  welcomeCard: {
-    width: '100%',
-    padding: spacing[6],
-    borderRadius: borderRadius['2xl'],
-    alignItems: 'center',
-    marginBottom: spacing[6],
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
-  },
-
-  welcomeEmoji: { fontSize: 44, marginBottom: spacing[3] },
-
-  welcomeTitle: {
-    ...textStyles.sectionHeader,
-    color: colors.dark.text,
-    textAlign: 'center',
-    marginBottom: spacing[2],
-  },
-
-  welcomeSubtitle: {
-    ...textStyles.body,
-    color: colors.dark.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-
-  promptsHeader: {
-    ...textStyles.bodyMedium,
-    color: colors.dark.textSecondary,
-    alignSelf: 'flex-start',
-    marginBottom: spacing[3],
-  },
-
-  promptsGrid: {
-    width: '100%',
     gap: spacing[2],
+    marginVertical: spacing[2],
   },
-
-  promptChip: {
-    backgroundColor: colors.dark.card,
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: borderRadius.full,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.dark.border,
+    gap: 4,
   },
-
-  promptChipText: {
-    ...textStyles.body,
-    color: colors.dark.text,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
   },
-
-  // ── Suggestions Scroll ────────────────────────────────────────────────────
-
-  chipsScrollView: {
-    maxHeight: 46,
-    backgroundColor: colors.dark.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.dark.border,
-  },
-
-  chipsScrollContent: {
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: spacing[8],
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    gap: spacing[2],
   },
-
-  miniChip: {
-    backgroundColor: colors.dark.card,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.dark.border,
+  emptyTitle: {
+    ...textStyles.bodyMedium,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-
-  miniChipText: {
+  emptySubtitle: {
     ...textStyles.caption,
-    color: colors.dark.text,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: spacing[1.5],
+    lineHeight: 18,
   },
-
-  // ── Input ─────────────────────────────────────────────────────────────────
-
-  inputArea: {
+  promptsGrid: {
+    width: '100%',
+    marginTop: spacing[6],
+    gap: spacing[2.5],
+  },
+  promptPill: {
+    backgroundColor: 'rgba(22, 25, 38, 0.7)',
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[3],
-    borderTopWidth: 1,
-    borderTopColor: colors.dark.border,
-    backgroundColor: colors.dark.surface,
+    paddingVertical: spacing[3],
   },
-
+  promptText: {
+    ...textStyles.bodyMedium,
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
+  inputContainer: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+    backgroundColor: '#0B0D14',
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(22, 25, 38, 0.9)',
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
     gap: spacing[2],
   },
-
   textInput: {
     flex: 1,
-    backgroundColor: colors.dark.card,
-    borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
     ...textStyles.body,
-    color: colors.dark.text,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.4)',
-    minHeight: 48,
-    maxHeight: 100,
-  },
-
-  voiceButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    ...shadow.glow,
-  },
-
-  voiceGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  voiceEmoji: {
-    fontSize: 22,
-  },
-
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-
-  sendButtonDisabled: {
-    opacity: 0.4,
-  },
-
-  sendButtonGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  sendIcon: {
-    fontSize: 20,
     color: '#FFFFFF',
+    fontSize: 14,
+    paddingVertical: spacing[1],
+  },
+  voiceIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceEmoji: {
+    fontSize: 16,
+  },
+  sendIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendEmoji: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
